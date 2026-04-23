@@ -5,7 +5,57 @@ export function useImpressao() {
     return `${dd}/${m}/${y}`
   }
 
-  function imprimir({ osNum, cliente, os, nomeServico, tipo = 'ambas', qtdFotos = 0 }) {
+  // itens = [{ nomeObjeto, servicos: [{ nome, quantidade, valor }] }]
+  function _parseMoeda(str) {
+    const s = String(str).replace(/[^\d.,]/g, '').replace(',', '.').replace(/(\..*)\./g, '$1')
+    return isNaN(Number(s)) ? 0 : Number(s)
+  }
+
+  function _buildItensHtml(itens, mostrarTotal = false) {
+    if (!itens?.length) return ''
+    let total = 0
+    let html  = ''
+
+    itens.forEach((obj, idx) => {
+      const subtotal = obj.servicos.reduce((s, sv) => {
+        const qty = sv.quantidade ?? 1
+        return s + _parseMoeda(sv.valor) * qty
+      }, 0)
+      total += subtotal
+
+      html += `<div class="obj-block">
+        <div class="obj-title">${idx + 1}. ${obj.nomeObjeto || 'Objeto'}</div>`
+
+      obj.servicos.forEach(sv => {
+        const qty     = sv.quantidade ?? 1
+        // Exibe "2× Fecho" quando qty > 1, nome simples quando qty = 1
+        const nomeExib = qty > 1 ? `${qty}\u00d7 ${sv.nome || '—'}` : (sv.nome || '—')
+        html += `<div class="row">
+          <span class="lbl">${nomeExib}</span>
+          <span class="val">${sv.valor || '—'}</span>
+        </div>`
+      })
+
+      if (mostrarTotal && obj.servicos.length > 1) {
+        const fmt = subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        html += `<div class="row obj-subtotal"><span class="lbl">Subtotal</span><span class="val">${fmt}</span></div>`
+      }
+
+      html += `</div>`
+    })
+
+    if (mostrarTotal && itens.length > 1) {
+      const fmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      html += `<div class="row total-row"><span class="lbl total-lbl">Total geral</span><span class="val total-val">${fmt}</span></div>`
+    } else if (mostrarTotal) {
+      const fmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      html += `<div class="row total-row"><span class="lbl total-lbl">Total</span><span class="val total-val">${fmt}</span></div>`
+    }
+
+    return html
+  }
+
+  function imprimir({ osNum, cliente, os, itens = [], tipo = 'ambas', qtdFotos = 0 }) {
     const hoje = new Date().toLocaleDateString('pt-BR')
 
     const estilos = `
@@ -28,6 +78,12 @@ export function useImpressao() {
       .row{display:flex;justify-content:space-between;margin-bottom:3px;gap:8px;line-height:1.4}
       .lbl{color:#555;flex-shrink:0;font-size:11px}
       .val{font-weight:600;text-align:right;word-break:break-word;font-size:11px}
+      .obj-block{margin-bottom:8px}
+      .obj-title{font-size:11px;font-weight:700;margin-bottom:3px;padding-bottom:2px;border-bottom:1px dashed #ddd}
+      .obj-subtotal .lbl,.obj-subtotal .val{color:#888;font-size:10px;font-weight:400}
+      .total-row{border-top:1px solid #000;margin-top:4px;padding-top:4px}
+      .total-lbl{font-weight:700;font-size:12px;color:#000}
+      .total-val{font-weight:900;font-size:13px;color:#000}
       .obs-block{margin-top:6px;padding:6px;background:#f5f5f5;border-radius:3px;font-size:11px;line-height:1.5}
       .obs-lbl{font-size:9px;text-transform:uppercase;color:#888;margin-bottom:2px}
       .badge{display:inline-block;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;
@@ -38,7 +94,9 @@ export function useImpressao() {
       .via-tag{text-align:right;font-size:9px;color:#bbb;margin-top:8px;font-style:italic}
     `
 
-    // ── Via do cliente: o que fica com ele (recibo simples) ───────────────
+    const badgeHtml = `<span class="badge badge-${os.estado === 'ORCAMENTO' ? 'orcamento' : 'entrada'}">${os.estado === 'ORCAMENTO' ? 'Orçamento' : 'Entrada'}</span>`
+
+    // ── Via do cliente: recibo simples ──────────────────────────────────
     const viaCliente = `
       <div class="via">
         <div class="header">
@@ -56,11 +114,9 @@ export function useImpressao() {
 
         <div class="divider-dashed"></div>
 
-        <div class="section-title">Serviço</div>
-        <span class="badge badge-${os.estado === 'ORCAMENTO' ? 'orcamento' : 'entrada'}">${os.estado === 'ORCAMENTO' ? 'Orçamento' : 'Entrada'}</span>
-        <div class="row"><span class="lbl">Serviço:</span><span class="val">${nomeServico}</span></div>
-        <div class="row"><span class="lbl">Qtd.:</span><span class="val">${os.quantidade}</span></div>
-        <div class="row"><span class="lbl">Valor:</span><span class="val">${os.valor || 'A confirmar'}</span></div>
+        <div class="section-title">Serviços</div>
+        ${badgeHtml}
+        ${_buildItensHtml(itens, true)}
 
         <div class="divider-dashed"></div>
 
@@ -73,7 +129,7 @@ export function useImpressao() {
       </div>
     `
 
-    // ── Via da loja: completa, com observações e detalhes internos ─────────
+    // ── Via da loja: completa ────────────────────────────────────────────
     const viaLoja = `
       <div class="via">
         <div class="header">
@@ -94,11 +150,10 @@ export function useImpressao() {
         <div class="divider-dashed"></div>
 
         <div class="section-title">Ordem de Serviço</div>
-        <span class="badge badge-${os.estado === 'ORCAMENTO' ? 'orcamento' : 'entrada'}">${os.estado === 'ORCAMENTO' ? 'Orçamento — aguarda aprovação' : 'Entrada — autorizado'}</span>
-        <div class="row"><span class="lbl">Serviço:</span><span class="val">${nomeServico}</span></div>
-        <div class="row"><span class="lbl">Qtd.:</span><span class="val">${os.quantidade}</span></div>
-        <div class="row"><span class="lbl">Valor:</span><span class="val">${os.valor || 'A definir'}</span></div>
-        ${qtdFotos > 0 ? `<div class="row"><span class="lbl">Fotos:</span><span class="val">${qtdFotos} foto${qtdFotos !== 1 ? 's' : ''} registrada${qtdFotos !== 1 ? 's' : ''}</span></div>` : ''}
+        ${badgeHtml.replace('>', os.estado === 'ORCAMENTO' ? '— aguarda aprovação>' : '— autorizado>')}
+        ${_buildItensHtml(itens, true)}
+
+        ${qtdFotos > 0 ? `<div class="row" style="margin-top:4px"><span class="lbl">Fotos:</span><span class="val">${qtdFotos} foto${qtdFotos !== 1 ? 's' : ''} registrada${qtdFotos !== 1 ? 's' : ''}</span></div>` : ''}
 
         <div class="divider-dashed"></div>
 

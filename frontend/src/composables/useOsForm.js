@@ -21,12 +21,10 @@ export function useOsForm() {
   const dateInputRef = ref(null)
   const tiposObjeto  = ref([])
   const servicos     = ref([])
-
-  const nomeServico = computed(
-    () => servicos.value.find(s => String(s.id) === os.servico)?.nome || '—'
-  )
+  const carregando   = ref(false)
 
   onMounted(async () => {
+    carregando.value = true
     try {
       const [tipos, svcs] = await Promise.all([
         listarTiposObjeto(),
@@ -34,7 +32,9 @@ export function useOsForm() {
       ])
       tiposObjeto.value = tipos ?? []
       servicos.value    = svcs?.data ?? svcs ?? []
-    } catch { /* campos ficam vazios */ }
+    } catch { /* campos ficam vazios */ } finally {
+      carregando.value = false
+    }
   })
 
   // ── classes de campo ───────────────────────────────────────
@@ -46,14 +46,13 @@ export function useOsForm() {
 
   function _validarCampo(campo) {
     erros[campo] = ''
-    if (campo === 'tipoObjeto' && !os.tipoObjeto) erros.tipoObjeto = 'Selecione o tipo de objeto.'
-    if (campo === 'servico'    && !os.servico)    erros.servico    = 'Selecione um serviço.'
-    if (campo === 'dataEntrega'&& !os.dataEntrega) erros.dataEntrega = 'Informe a data de entrega.'
+    if (campo === 'dataEntrega' && !os.dataEntrega) erros.dataEntrega = 'Informe a data de entrega.'
   }
 
   function validar() {
-    ;['tipoObjeto', 'servico', 'dataEntrega'].forEach(c => { tocados[c] = true; _validarCampo(c) })
-    return !Object.values(erros).some(Boolean)
+    tocados['dataEntrega'] = true
+    _validarCampo('dataEntrega')
+    return !erros.dataEntrega
   }
 
   // ── helpers de campo ───────────────────────────────────────
@@ -70,14 +69,14 @@ export function useOsForm() {
   }
 
   function reset() {
-    Object.assign(os,     { estado: 'ENTRADA', tipoObjeto: '', servico: '', quantidade: 1, dataEntrega: '', horaEntrega: '', valor: '', observacoes: '' })
-    Object.assign(erros,  { tipoObjeto: '', servico: '', dataEntrega: '' })
+    Object.assign(os,     { estado: 'ENTRADA', dataEntrega: '', horaEntrega: '', observacoes: '' })
+    Object.assign(erros,  { dataEntrega: '' })
     Object.assign(tocados, {})
   }
 
   return {
-    os, erros, dateInputRef, tiposObjeto, servicos, nomeServico,
+    os, erros, dateInputRef, tiposObjeto, servicos, carregando,
     inputClass, selectClass, touch, validar,
-    openDatePicker, onCurrencyInput, reset,
+    openDatePicker, reset,
   }
 }

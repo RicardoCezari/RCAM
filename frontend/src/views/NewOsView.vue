@@ -179,7 +179,7 @@
           <div class="flex flex-1 flex-col overflow-y-auto p-4 sm:p-5">
 
             <!-- Tipo da OS: Entrada / Orçamento -->
-            <div class="mb-4">
+            <div class="mb-5">
               <p class="mb-1.5 text-sm font-medium text-slate-700">Tipo da O.S.</p>
               <div class="flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1 sm:inline-flex sm:w-auto">
                 <button
@@ -200,50 +200,31 @@
               <p class="mt-1.5 text-xs text-slate-400">{{ os.estado === 'ORCAMENTO' ? 'A O.S. ficará aguardando aprovação do cliente antes de iniciar.' : 'O serviço está autorizado e pode ser iniciado.' }}</p>
             </div>
 
-            <!-- Tipo de objeto + Serviço + Quantidade -->
-            <div class="mb-4 grid gap-4 grid-cols-1 sm:grid-cols-[1fr_1fr_160px]">
-              <BaseFormField id="os-tipo" label="Tipo de objeto" required :error="errosOs.tipoObjeto">
-                <div class="relative">
-                  <select id="os-tipo" v-model="os.tipoObjeto" :class="selectClass('tipoObjeto')" @blur="touchOs('tipoObjeto')">
-                    <option value="">Selecione o tipo de objeto</option>
-                    <option v-for="t in tiposObjeto" :key="t.id" :value="String(t.id)">{{ t.nome }}</option>
-                  </select>
-                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <span class="mdi mdi-chevron-down text-[16px]"></span>
-                  </span>
-                </div>
-              </BaseFormField>
+            <!-- Editor de objetos + serviços -->
+            <OsItensEditor
+              :objetos="objetos"
+              :erros="errosItens"
+              :tipos-objeto="tiposObjeto"
+              :servicos="servicos"
+              :total-geral="totalGeral"
+              :total-objeto="totalObjeto"
+              :nome-tipo-objeto="nomeTipoObjeto"
+              :mudar-quantidade="mudarQuantidade"
+              :carregando="carregando"
+              @adicionar-objeto="adicionarObjeto"
+              @remover-objeto="removerObjeto"
+              @adicionar-servico="adicionarServico"
+              @remover-servico="removerServico"
+              @selecionar-servico="aoSelecionarServico"
+              @editar-valor="aoEditarValor"
+              @blur-valor="aoBlurValor"
+            />
 
-              <BaseFormField id="os-servico" label="Serviço" required :error="errosOs.servico">
-                <div class="relative">
-                  <select id="os-servico" v-model="os.servico" :class="selectClass('servico')" @blur="touchOs('servico')">
-                    <option value="">Selecione um serviço</option>
-                    <option v-for="s in servicos" :key="s.id" :value="String(s.id)">{{ s.nome }}</option>
-                  </select>
-                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <span class="mdi mdi-chevron-down text-[16px]"></span>
-                  </span>
-                </div>
-              </BaseFormField>
+            <!-- Separador -->
+            <hr class="my-4 border-slate-100" />
 
-              <BaseFormField id="os-qtd" label="Quantidade" required>
-                <div class="flex h-12 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 transition focus-within:border-black focus-within:ring-2 focus-within:ring-black/10">
-                  <button type="button" class="flex w-11 shrink-0 items-center justify-center border-r border-slate-200 text-slate-500 transition hover:bg-slate-100"
-                    @click="os.quantidade = Math.max(1, os.quantidade - 1)">
-                    <span class="mdi mdi-minus text-[16px]"></span>
-                  </button>
-                  <input type="number" v-model.number="os.quantidade" min="1" max="99"
-                    class="w-full bg-transparent text-center text-sm font-semibold text-slate-900 outline-none [appearance:textfield]" />
-                  <button type="button" class="flex w-11 shrink-0 items-center justify-center border-l border-slate-200 text-slate-500 transition hover:bg-slate-100"
-                    @click="os.quantidade = Math.min(99, os.quantidade + 1)">
-                    <span class="mdi mdi-plus text-[16px]"></span>
-                  </button>
-                </div>
-              </BaseFormField>
-            </div>
-
-            <!-- Data + Hora + Valor -->
-            <div class="mb-5 grid gap-5 sm:grid-cols-3">
+            <!-- Data + Hora -->
+            <div class="mb-4 grid gap-4 sm:grid-cols-2">
               <BaseFormField id="os-data" label="Data de entrega" required :error="errosOs.dataEntrega">
                 <input id="os-data" ref="dateInputRef" v-model="os.dataEntrega" type="date"
                   :class="inputClassOs('dataEntrega')"
@@ -254,17 +235,11 @@
                 <input id="os-hora" v-model="os.horaEntrega" type="time"
                   :class="inputClassOs('horaEntrega')" />
               </BaseFormField>
-
-              <BaseFormField id="os-valor" label="Valor estimado" optional>
-                <input id="os-valor" v-model="os.valor" type="text" inputmode="numeric" placeholder="R$ 0,00"
-                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-black focus:bg-white focus:ring-2 focus:ring-black/10"
-                  @input="onCurrencyInput" />
-              </BaseFormField>
             </div>
 
-            <!-- Observações -->
-            <BaseFormField id="os-obs2" label="Observações" optional class="flex flex-1 min-h-0 flex-col">
-              <textarea id="os-obs2" v-model="os.observacoes" placeholder="Detalhes do serviço..."
+            <!-- Observações gerais -->
+            <BaseFormField id="os-obs2" label="Observações gerais" optional class="flex flex-1 min-h-0 flex-col">
+              <textarea id="os-obs2" v-model="os.observacoes" placeholder="Observações da O.S. (prazo especial, instrução ao técnico...)"
                 class="flex-1 min-h-[60px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-black focus:bg-white focus:ring-2 focus:ring-black/10"
               ></textarea>
             </BaseFormField>
@@ -448,8 +423,10 @@ import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
 import WizardSteps from '@/components/base/WizardSteps.vue'
 import ClienteVinculadoBanner from '@/components/base/ClienteVinculadoBanner.vue'
+import OsItensEditor from '@/components/os/OsItensEditor.vue'
 import { useClienteForm } from '@/composables/useClienteForm'
 import { useOsForm } from '@/composables/useOsForm'
+import { useItens, formatarMoeda } from '@/composables/useItens'
 import { useFotos } from '@/composables/useFotos'
 import { useImpressao } from '@/composables/useImpressao'
 import { buscarCliente, criarCliente } from '@/services/clientes'
@@ -483,29 +460,37 @@ const {
 } = useClienteForm()
 
 const {
-  os, erros: errosOs, dateInputRef, tiposObjeto, servicos, nomeServico,
+  os, erros: errosOs, dateInputRef, tiposObjeto, servicos, carregando,
   inputClass: inputClassOs, selectClass, touch: touchOs, validar: validarOs,
-  openDatePicker, onCurrencyInput, reset: resetOs,
+  openDatePicker, reset: resetOs,
 } = useOsForm()
+
+const {
+  objetos, erros: errosItens, totalGeral, totalObjeto,
+  nomeTipoObjeto,
+  adicionarObjeto, removerObjeto,
+  adicionarServico, removerServico, mudarQuantidade,
+  aoSelecionarServico, aoEditarValor, aoBlurValor,
+  validar: validarItens, toItens, reset: resetItens,
+} = useItens(tiposObjeto, servicos)
 
 const { previews: fotoPreviews, files: fotosFiles, adicionar: adicionarFotos, remover: removerFoto, reset: resetFotos } = useFotos()
 const { formatarData, imprimir } = useImpressao()
 
 // ── estado local ─────────────────────────────────────────────
-const salvando  = ref(false)
+const salvando   = ref(false)
 const erroSalvar = ref('')
-const osCriada  = ref(null)
-const viasExtra  = ref(1)
+const osCriada   = ref(null)
 
 const resumo = computed(() => [
   { label: 'Tipo',          valor: os.estado === 'ORCAMENTO' ? 'Orçamento' : 'Entrada' },
-  { label: 'Cliente',        valor: cliente.nome },
-  { label: 'Telefone',       valor: cliente.telefone || '—' },
-  { label: 'Serviço',        valor: nomeServico.value },
+  { label: 'Cliente',       valor: cliente.nome },
+  { label: 'Telefone',      valor: cliente.telefone || '—' },
+  { label: 'Objetos',       valor: objetos.value.length + (objetos.value.length !== 1 ? ' objetos' : ' objeto') },
+  { label: 'Total',         valor: totalGeral.value > 0 ? formatarMoeda(totalGeral.value) : '—' },
   { label: 'Data de entrega',valor: os.dataEntrega ? formatarData(os.dataEntrega) : '—' },
   { label: 'Hora de entrega',valor: os.horaEntrega || '—' },
-  { label: 'Valor',          valor: os.valor || '—' },
-  { label: 'Fotos',          valor: fotoPreviews.value.length + (fotoPreviews.value.length !== 1 ? ' fotos' : ' foto') },
+  { label: 'Fotos',         valor: fotoPreviews.value.length + (fotoPreviews.value.length !== 1 ? ' fotos' : ' foto') },
 ])
 
 // ── ciclo de vida ────────────────────────────────────────────
@@ -520,8 +505,12 @@ onMounted(async () => {
 })
 
 // ── navegação entre etapas ────────────────────────────────────
-function irParaOs()    { if (validarCliente()) etapa.value = 'os' }
-function irParaFotos() { if (validarOs())      etapa.value = 'fotos' }
+function irParaOs() { if (validarCliente()) etapa.value = 'os' }
+function irParaFotos() {
+  const okOs    = validarOs()
+  const okItens = validarItens()
+  if (okOs && okItens) etapa.value = 'fotos'
+}
 
 // ── salvar ───────────────────────────────────────────────────
 async function salvarOs() {
@@ -540,9 +529,6 @@ async function salvarOs() {
       clienteId = novo.id
     }
 
-    const valorNum = os.valor
-      ? Number(os.valor.replace(/[^\d,]/g, '').replace(',', '.'))
-      : undefined
 
     osCriada.value = await criarOrdem({
       cliente_id:   clienteId,
@@ -550,12 +536,7 @@ async function salvarOs() {
       data_entrega: os.dataEntrega,
       hora_entrega: os.horaEntrega || undefined,
       observacoes:  os.observacoes.trim() || undefined,
-      itens: [{
-        tipo_objeto_id: Number(os.tipoObjeto),
-        servico_id:     Number(os.servico),
-        quantidade:     os.quantidade,
-        valor_unitario: valorNum,
-      }],
+      itens:        toItens(os.estado === 'ORCAMENTO'),
     })
     etapa.value = 'impressao'
   } catch (err) {
@@ -572,11 +553,18 @@ async function salvarOs() {
 // ── impressão ────────────────────────────────────────────────
 function imprimirVia(tipo) {
   imprimir({
-    osNum:       osCriada.value?.numero ?? osCriada.value?.id ?? '—',
+    osNum:    osCriada.value?.numero ?? osCriada.value?.id ?? '—',
     cliente, os,
-    nomeServico: nomeServico.value,
+    itens: objetos.value.map(obj => ({
+      nomeObjeto: nomeTipoObjeto(obj.tipo_objeto_id),
+      servicos:   obj.servicos.map(sv => ({
+        nome:       sv.nome,
+        quantidade: sv.quantidade,
+        valor:      sv._valorStr || '—',
+      })),
+    })),
     tipo,
-    qtdFotos:    fotoPreviews.value.length,
+    qtdFotos: fotoPreviews.value.length,
   })
 }
 
@@ -585,8 +573,9 @@ function reiniciar() {
   etapa.value = 'cliente'
   resetCliente()
   resetOs()
+  resetItens()
   resetFotos()
-  osCriada.value  = null
+  osCriada.value   = null
   erroSalvar.value = ''
 }
 </script>

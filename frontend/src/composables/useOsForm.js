@@ -12,8 +12,9 @@ function cls(base, hasError) {
 
 export function useOsForm() {
   const os = reactive({
+    estado: 'ENTRADA',
     tipoObjeto: '', servico: '', quantidade: 1,
-    dataEntrega: '', valor: '', observacoes: '',
+    dataEntrega: '', horaEntrega: '', valor: '', observacoes: '',
   })
   const erros   = reactive({ tipoObjeto: '', servico: '', dataEntrega: '' })
   const tocados = reactive({})
@@ -69,7 +70,7 @@ export function useOsForm() {
   }
 
   function reset() {
-    Object.assign(os,     { tipoObjeto: '', servico: '', quantidade: 1, dataEntrega: '', valor: '', observacoes: '' })
+    Object.assign(os,     { estado: 'ENTRADA', tipoObjeto: '', servico: '', quantidade: 1, dataEntrega: '', horaEntrega: '', valor: '', observacoes: '' })
     Object.assign(erros,  { tipoObjeto: '', servico: '', dataEntrega: '' })
     Object.assign(tocados, {})
   }

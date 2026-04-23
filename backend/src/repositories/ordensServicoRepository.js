@@ -63,16 +63,16 @@ async function buscarItens(ordemId) {
 }
 
 /* Cria OS + itens dentro de uma única transação */
-async function criar({ cliente_id, usuario_id, data_entrega, hora_entrega, observacoes, itens = [] }) {
+async function criar({ cliente_id, usuario_id, estado = 'ENTRADA', data_entrega, hora_entrega, observacoes, itens = [] }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     const { rows: osRows } = await client.query(
-      `INSERT INTO ordens_servico (cliente_id, usuario_id, data_entrega, hora_entrega, observacoes)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO ordens_servico (cliente_id, usuario_id, estado, data_entrega, hora_entrega, observacoes)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [cliente_id, usuario_id, data_entrega, hora_entrega || null, observacoes || null]
+      [cliente_id, usuario_id, estado, data_entrega, hora_entrega || null, observacoes || null]
     );
     const os = osRows[0];
 

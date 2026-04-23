@@ -1,7 +1,8 @@
 const AppError = require('../utils/AppError');
 const ordensServicoRepository = require('../repositories/ordensServicoRepository');
 
-const ESTADOS_VALIDOS = ['ENTRADA', 'ORCAMENTO', 'EM_ANDAMENTO', 'CANCELADO', 'CONCLUIDO'];
+const ESTADOS_VALIDOS = ['ENTRADA', 'ORCAMENTO', 'AUTORIZADO', 'PENDENTE', 'CONCLUIDO', 'CANCELADO'];
+const ESTADOS_INICIAIS = ['ENTRADA', 'ORCAMENTO'];
 
 // ──────────────────────────────────────
 // Listagem com filtros e paginação
@@ -52,8 +53,12 @@ async function buscarPorId(id) {
 // ──────────────────────────────────────
 // Criar OS com itens (transação no repository)
 // ──────────────────────────────────────
-async function criar({ cliente_id, usuario_id, data_entrega, hora_entrega, observacoes, itens = [] }) {
-  const os = await ordensServicoRepository.criar({ cliente_id, usuario_id, data_entrega, hora_entrega, observacoes, itens });
+async function criar({ cliente_id, usuario_id, estado = 'ENTRADA', data_entrega, hora_entrega, observacoes, itens = [] }) {
+  const estadoUpper = estado.toUpperCase();
+  if (!ESTADOS_INICIAIS.includes(estadoUpper)) {
+    throw AppError.badRequest(`Estado inicial inválido. Use: ${ESTADOS_INICIAIS.join(', ')}`);
+  }
+  const os = await ordensServicoRepository.criar({ cliente_id, usuario_id, estado: estadoUpper, data_entrega, hora_entrega, observacoes, itens });
   return buscarPorId(os.id);
 }
 

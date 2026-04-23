@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="$attrs.class">
     <label
       v-if="label"
       :for="id"
@@ -19,6 +19,7 @@
 </template>
 
 <script setup>
+defineOptions({ inheritAttrs: false })
 defineProps({
   id: { type: String, default: '' },
   label: { type: String, default: '' },

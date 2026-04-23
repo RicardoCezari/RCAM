@@ -17,7 +17,7 @@
           </p>
 
           <h2
-            class="mt-4 max-w-2xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[42px]"
+            class="mt-4 max-w-2xl text-2xl font-semibold leading-tight tracking-tight sm:text-3xl lg:text-4xl xl:text-[42px]"
           >
             {{ title }}
           </h2>

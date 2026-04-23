@@ -24,7 +24,10 @@
     ></div>
 
     <!-- header -->
-    <header class="sticky top-0 z-40 border-b border-black/10 bg-black/95 text-white backdrop-blur">
+    <header
+      ref="headerRef"
+      class="sticky top-0 z-40 border-b border-black/10 bg-black/95 text-white backdrop-blur"
+    >
       <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <!-- brand -->
         <RouterLink to="/" class="flex items-center gap-3">
@@ -34,7 +37,7 @@
         </RouterLink>
 
         <!-- desktop nav -->
-        <nav class="hidden items-center gap-1 lg:flex">
+        <nav class="hidden items-center gap-1 md:flex">
           <RouterLink
             to="/nova-os"
             class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
@@ -70,7 +73,7 @@
               <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-semibold text-black shadow-[0_0_14px_rgba(255,255,255,0.35)] ring-1 ring-white/70 transition duration-200 group-hover:-translate-y-[1px] group-hover:scale-[1.03] group-hover:shadow-[0_0_20px_rgba(255,255,255,0.5)]">
                 {{ iniciais }}
               </div>
-              <div class="hidden xl:block">
+              <div class="hidden lg:block">
                 <p class="text-sm font-medium leading-none">{{ nomeUsuario }}</p>
                 <p class="mt-1 text-xs text-white/55">Minha conta</p>
               </div>
@@ -165,22 +168,49 @@
     </header>
 
     <!-- page content -->
-    <main class="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+    <main
+      :class="[
+        'relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8',
+        fullHeight
+          ? 'flex flex-col pb-4'
+          : 'py-6 sm:py-8 lg:py-10',
+      ]"
+      :style="fullHeight ? { height: 'calc(100dvh - ' + headerHeight + 'px)' } : {}"
+    >
       <slot />
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+
+defineProps({
+  fullHeight: { type: Boolean, default: false },
+})
 
 const router = useRouter()
 const authStore = useAuthStore()
 
+const headerRef    = ref(null)
+const headerHeight = ref(76)
+
+function updateHeaderHeight() {
+  if (headerRef.value) headerHeight.value = headerRef.value.offsetHeight
+}
+
+onMounted(() => {
+  updateHeaderHeight()
+  window.addEventListener('resize', updateHeaderHeight)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateHeaderHeight)
+})
+
 const isMobileMenuOpen = ref(false)
-const isUserMenuOpen = ref(false)
+const isUserMenuOpen   = ref(false)
 
 function toggleMobileMenu() { isMobileMenuOpen.value = !isMobileMenuOpen.value }
 function toggleUserMenu()   { isUserMenuOpen.value   = !isUserMenuOpen.value   }

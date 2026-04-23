@@ -461,7 +461,7 @@ const {
 
 const {
   os, erros: errosOs, dateInputRef, tiposObjeto, servicos, carregando,
-  inputClass: inputClassOs, selectClass, touch: touchOs, validar: validarOs,
+  inputClass: inputClassOs, touch: touchOs, validar: validarOs,
   openDatePicker, reset: resetOs,
 } = useOsForm()
 

@@ -67,13 +67,6 @@ function editarCliente(cliente) {
 }
 </script>
 
-
-<script setup>
-import { ref } from "vue";
-import AppLayout from "@/layouts/AppLayout.vue";
-import BasePageTitle from "@/components/base/BasePageTitle.vue";
-import BaseDataTable from "@/components/base/BaseDataTable.vue";
-
 const columns = [
   {
     key: "nomeCompleto",

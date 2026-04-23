@@ -83,9 +83,6 @@ function editarOrdem(ordem) {
   console.warn('Editar O.S.:', ordem.id)
 }
 </script>
-
-      >
-        <template #status="{ value }">
           <span
             class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
             :class="getStatusClass(value)"

@@ -12,11 +12,12 @@ function cls(base, hasError) {
 
 export function useOsForm() {
   const os = reactive({
-    estado: 'ENTRADA',
-    tipoObjeto: '', servico: '', quantidade: 1,
-    dataEntrega: '', horaEntrega: '', valor: '', observacoes: '',
+    estado:      'ENTRADA',
+    dataEntrega: '',
+    horaEntrega: '',
+    observacoes: '',
   })
-  const erros   = reactive({ tipoObjeto: '', servico: '', dataEntrega: '' })
+  const erros = reactive({ dataEntrega: '' })
   const tocados = reactive({})
   const dateInputRef = ref(null)
   const tiposObjeto  = ref([])
@@ -39,7 +40,6 @@ export function useOsForm() {
 
   // ── classes de campo ───────────────────────────────────────
   function inputClass(campo) { return cls(FIELD_BASE, tocados[campo] && erros[campo]) }
-  function selectClass(campo) { return cls(`${FIELD_BASE} appearance-none pr-8`, tocados[campo] && erros[campo]) }
 
   // ── validação ──────────────────────────────────────────────
   function touch(campo) { tocados[campo] = true; _validarCampo(campo) }
@@ -61,13 +61,6 @@ export function useOsForm() {
       dateInputRef.value.showPicker()
   }
 
-  function onCurrencyInput(e) {
-    const d = e.target.value.replace(/\D/g, '')
-    os.valor = d
-      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(d) / 100)
-      : ''
-  }
-
   function reset() {
     Object.assign(os,     { estado: 'ENTRADA', dataEntrega: '', horaEntrega: '', observacoes: '' })
     Object.assign(erros,  { dataEntrega: '' })
@@ -76,7 +69,7 @@ export function useOsForm() {
 
   return {
     os, erros, dateInputRef, tiposObjeto, servicos, carregando,
-    inputClass, selectClass, touch, validar,
+    inputClass, touch, validar,
     openDatePicker, reset,
   }
 }

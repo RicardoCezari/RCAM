@@ -24,11 +24,23 @@ async function buscarPorId(id) {
 }
 
 async function criar({ nome, telefone, cpf, email, informacao_adicional }) {
+  if (telefone) {
+    const digits = telefone.replace(/\D/g, '');
+    const existente = await clientesRepository.buscarPorTelefone(digits);
+    if (existente) throw AppError.conflict(`Telefone já cadastrado para ${existente.nome}.`);
+  }
   return clientesRepository.criar({ nome, telefone, cpf, email, informacao_adicional });
 }
 
 async function atualizar(id, { nome, telefone, cpf, email, informacao_adicional }) {
   await buscarPorId(id);
+  if (telefone) {
+    const digits = telefone.replace(/\D/g, '');
+    const existente = await clientesRepository.buscarPorTelefone(digits);
+    if (existente && existente.id !== Number(id)) {
+      throw AppError.conflict(`Telefone já cadastrado para ${existente.nome}.`);
+    }
+  }
   return clientesRepository.atualizar(id, { nome, telefone, cpf, email, informacao_adicional });
 }
 

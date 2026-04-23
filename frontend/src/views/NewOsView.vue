@@ -343,50 +343,82 @@
 
       <!-- ── ETAPA 4: Impressão ────────────────────────────────── -->
       <div v-else-if="etapa === 'impressao'" key="impressao" class="flex flex-1 min-h-0 flex-col">
-        <div class="shrink-0 flex items-center gap-3 py-3">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50">
-            <span class="mdi mdi-check-circle text-[28px] text-emerald-500"></span>
-          </div>
-          <div>
-          <h2 class="text-lg font-semibold text-slate-900">O.S. criada com sucesso!</h2>
-          <p class="text-sm text-slate-500">
-            O.S. <strong class="text-slate-900">#{{ osCriada?.numero ?? osCriada?.id }}</strong>
-            — <strong class="text-slate-900">{{ cliente.nome }}</strong>
-          </p>
+
+        <!-- Cabeçalho de sucesso compacto -->
+        <div class="shrink-0 py-3">
+          <div class="flex items-center gap-3">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+              <span class="mdi mdi-check-bold text-[20px] text-emerald-600"></span>
+            </div>
+            <div>
+              <h2 class="text-base font-semibold text-slate-900">O.S. criada com sucesso!</h2>
+              <p class="text-xs text-slate-500">{{ cliente.nome }}</p>
+            </div>
+            <!-- Número da OS em destaque -->
+            <div class="ml-auto shrink-0 flex flex-col items-end">
+              <span class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Número</span>
+              <span class="text-2xl font-black tracking-tight text-slate-900">#{{ osCriada?.numero ?? osCriada?.id }}</span>
+            </div>
           </div>
         </div>
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_4px_24px_rgba(15,23,42,0.06)]">
-          <div class="flex-1 overflow-y-auto p-4 sm:p-5">
-            <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Resumo</h3>
-            <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div class="flex flex-1 flex-col overflow-y-auto p-4 sm:p-5">
+
+            <!-- Resumo da OS -->
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Resumo</p>
+            <dl class="mb-5 grid gap-x-6 gap-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
               <div v-for="item in resumo" :key="item.label">
-                <dt class="text-xs text-slate-400">{{ item.label }}</dt>
+                <dt class="text-[11px] text-slate-400">{{ item.label }}</dt>
                 <dd class="text-sm font-medium text-slate-900">{{ item.valor }}</dd>
               </div>
             </dl>
 
-            <hr class="my-5 border-slate-100" />
+            <!-- Seção de impressão -->
+            <p class="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Impressão das vias</p>
 
-            <h3 class="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Impressão</h3>
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button type="button"
-                class="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-black/85"
-                @click="imprimirVias(2)">
-                <span class="mdi mdi-printer-outline text-[18px]"></span>
-                Imprimir 2 vias
-              </button>
-              <div class="flex h-12 overflow-hidden rounded-xl border border-slate-200 sm:w-56">
-                <input v-model.number="viasExtra" type="number" min="1" max="20"
-                  class="w-full bg-slate-50 px-3 text-center text-sm font-semibold text-slate-900 outline-none [appearance:textfield] focus:bg-white" />
-                <button type="button"
-                  class="flex shrink-0 items-center gap-2 border-l border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                  @click="imprimirVias(viasExtra)">
-                  <span class="mdi mdi-printer-outline text-[16px]"></span>
-                  Imprimir
-                </button>
+            <!-- Via do Cliente -->
+            <div class="mb-3 flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                <span class="mdi mdi-account-outline text-[22px] text-slate-600"></span>
               </div>
+              <div class="min-w-0 flex-1">
+                <p class="font-semibold text-slate-900">Via do cliente</p>
+                <p class="mt-0.5 text-xs text-slate-500">Nome, telefone, número da O.S. e data de entrega. Sem detalhes internos.</p>
+              </div>
+              <button type="button"
+                class="shrink-0 flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                @click="imprimirVia('cliente')">
+                <span class="mdi mdi-printer-outline text-[16px]"></span>
+                Imprimir
+              </button>
             </div>
+
+            <!-- Via da Loja -->
+            <div class="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black">
+                <span class="mdi mdi-store-outline text-[22px] text-white"></span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="font-semibold text-slate-900">Via da loja</p>
+                <p class="mt-0.5 text-xs text-slate-500">Completo: serviço, valor, tipo de objeto, quantidade, observações e fotos.</p>
+              </div>
+              <button type="button"
+                class="shrink-0 flex items-center gap-1.5 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/85"
+                @click="imprimirVia('loja')">
+                <span class="mdi mdi-printer-outline text-[16px]"></span>
+                Imprimir
+              </button>
+            </div>
+
+            <!-- Botão imprimir ambas juntas -->
+            <button type="button"
+              class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm font-medium text-slate-500 transition hover:border-black hover:text-slate-900"
+              @click="imprimirVia('ambas')">
+              <span class="mdi mdi-printer-pos-outline text-[18px]"></span>
+              Imprimir as duas vias juntas
+            </button>
+
           </div>
 
           <div class="shrink-0 border-t border-slate-100 px-4 py-3 sm:px-5">
@@ -538,12 +570,13 @@ async function salvarOs() {
 }
 
 // ── impressão ────────────────────────────────────────────────
-function imprimirVias(n) {
+function imprimirVia(tipo) {
   imprimir({
     osNum:       osCriada.value?.numero ?? osCriada.value?.id ?? '—',
     cliente, os,
     nomeServico: nomeServico.value,
-    vias:        n,
+    tipo,
+    qtdFotos:    fotoPreviews.value.length,
   })
 }
 

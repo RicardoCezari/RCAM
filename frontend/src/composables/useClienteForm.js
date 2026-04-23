@@ -10,10 +10,26 @@ const INPUT_BASE =
 
 function formatarTelefone(raw) {
   const d = (raw || '').replace(/\D/g, '').slice(0, 11)
-  if (d.length > 7) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
-  if (d.length > 2) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-  if (d.length === 2) return `(${d})`
+  // 11 dígitos → celular:  (XX) XXXXX-XXXX
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  // 10 dígitos → fixo:     (XX) XXXX-XXXX
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  // 7–9 dígitos → parcial fixo durante digitação
+  if (d.length > 6)    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  if (d.length > 2)    return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length === 2)  return `(${d})`
   return d
+}
+
+// DDD brasileiro válido: 11-99 (sem 0X)
+// Celular: 11 dígitos, 3º dígito = 9
+// Fixo:    10 dígitos
+function _telefoneValido(digits) {
+  if (digits.length !== 10 && digits.length !== 11) return { ok: false, msg: 'Telefone incompleto.' }
+  const ddd = parseInt(digits.slice(0, 2), 10)
+  if (ddd < 11 || ddd > 99) return { ok: false, msg: 'DDD inválido.' }
+  if (digits.length === 11 && digits[2] !== '9') return { ok: false, msg: 'Celular deve ter 9 como primeiro dígito após o DDD.' }
+  return { ok: true }
 }
 
 export function useClienteForm() {
@@ -62,9 +78,22 @@ export function useClienteForm() {
       avisoSubstituirTel.value = v !== telOriginal.value
       return
     }
-    sugestaoTel.value = null
     avisoSubstituirTel.value = false
-    if (d.length === 11) _buscarPorTelefone(d)
+    if (d.length === 10 || d.length === 11) {
+      const check = _telefoneValido(d)
+      if (check.ok) {
+        if (tocados['telefone']) erros.telefone = ''
+        _buscarPorTelefone(d)
+      } else {
+        sugestaoTel.value = null
+        if (tocados['telefone']) erros.telefone = check.msg
+      }
+    } else {
+      sugestaoTel.value = null
+      if (tocados['telefone']) {
+        erros.telefone = d.length > 0 ? 'Telefone incompleto.' : ''
+      }
+    }
   }
 
   async function _buscarPorTelefone(digits) {
@@ -72,6 +101,8 @@ export function useClienteForm() {
     try {
       const c = await buscarClientePorTelefone(digits)
       sugestaoTel.value = c || null
+      // Duplicata NÃO é erro vermelho — o card de aviso no template trata isso
+      if (tocados['telefone'] && !c) erros.telefone = ''
     } catch {
       sugestaoTel.value = null
     } finally {
@@ -94,6 +125,8 @@ export function useClienteForm() {
     sugestaoTel.value          = null
     sugestoesNome.value        = []
     avisoSubstituirTel.value   = false
+    erros.telefone             = ''
+    erros.nome                 = ''
   }
 
   function desvincular() {
@@ -118,7 +151,14 @@ export function useClienteForm() {
       clienteVinculado.value   = atualizado
       telOriginal.value        = cliente.telefone
       avisoSubstituirTel.value = false
-    } catch {
+    } catch (err) {
+      const status = err?.response?.status
+      const msg    = err?.response?.data?.message || ''
+      if (status === 409) {
+        erros.telefone = msg || 'Este número já está cadastrado para outro cliente.'
+        tocados['telefone'] = true
+        avisoSubstituirTel.value = false
+      }
       reverterTelefone()
     } finally {
       loadingSubstituir.value = false
@@ -157,15 +197,28 @@ export function useClienteForm() {
   function _validarCampo(campo) {
     erros[campo] = ''
     const d = cliente[campo]?.replace?.(/\D/g, '') ?? ''
-    if (campo === 'nome'     && !cliente.nome.trim())                              erros.nome     = 'Informe o nome do cliente.'
-    if (campo === 'telefone' && cliente.telefone && d.length < 10)                 erros.telefone = 'Telefone incompleto.'
-    if (campo === 'cpf'      && cliente.cpf      && d.length !== 11)               erros.cpf      = 'CPF deve ter 11 dígitos.'
-    if (campo === 'email'    && cliente.email    && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.email)) erros.email = 'E-mail inválido.'
+    if (campo === 'nome' && !cliente.nome.trim()) {
+      erros.nome = 'Informe o nome do cliente.'
+    }
+    if (campo === 'telefone' && cliente.telefone) {
+      const check = _telefoneValido(d)
+      if (!check.ok) erros.telefone = check.msg
+      // duplicata: bloqueia submit mas sem vermelho — o card âmbar já informa
+    }
+    if (campo === 'cpf'   && cliente.cpf   && d.length !== 11) erros.cpf   = 'CPF deve ter 11 dígitos.'
+    if (campo === 'email' && cliente.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cliente.email)) erros.email = 'E-mail inválido.'
   }
 
   function validar() {
     ;['nome', 'telefone', 'cpf', 'email'].forEach(c => { tocados[c] = true; _validarCampo(c) })
+    // Bloquear se houver duplicata não resolvida
+    if (sugestaoTel.value && !clienteVinculado.value) return false
     return !Object.values(erros).some(Boolean)
+  }
+
+  function ignorarSugestaoTel() {
+    sugestaoTel.value = null
+    erros.telefone    = ''
   }
 
   function reset() { desvincular() }
@@ -174,7 +227,7 @@ export function useClienteForm() {
     cliente, erros, clienteVinculado,
     buscandoTel, buscandoNome, sugestaoTel, sugestoesNome,
     telOriginal, avisoSubstituirTel, loadingSubstituir,
-    aoDigitarTelefone, vincularCliente, desvincular,
+    aoDigitarTelefone, vincularCliente, desvincular, ignorarSugestaoTel,
     substituirTelefone, reverterTelefone,
     mascaraCpf, iniciais, inputClass, touch, validar, reset,
   }

@@ -43,22 +43,9 @@
           </div>
 
           <form @submit.prevent="handleLogin">
-            <!-- Erro -->
-            <transition name="fade">
-              <div
-                v-if="authStore.erro"
-                class="mb-5 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-[0_10px_25px_rgba(239,68,68,0.08)]"
-              >
-                <span class="mdi mdi-alert-circle-outline mt-0.5 text-base"></span>
-                <span>{{ authStore.erro }}</span>
-              </div>
-            </transition>
+            <BaseAlert :message="authStore.erro" class="mb-5" />
 
-            <!-- Login -->
-            <div class="mb-5">
-              <label class="mb-1.5 block text-sm font-medium text-slate-700" for="login">
-                Login
-              </label>
+            <BaseFormField id="login" label="Login" class="mb-5">
               <input
                 id="login"
                 v-model="form.login"
@@ -68,13 +55,9 @@
                 class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.06)] outline-none transition placeholder:text-slate-400 focus:border-black focus:shadow-[0_12px_30px_rgba(15,23,42,0.10)] focus:ring-4 focus:ring-black/5"
                 :disabled="authStore.loading"
               />
-            </div>
+            </BaseFormField>
 
-            <!-- Senha -->
-            <div class="mb-7">
-              <label class="mb-1.5 block text-sm font-medium text-slate-700" for="senha">
-                Senha
-              </label>
+            <BaseFormField id="senha" label="Senha" class="mb-7">
               <div class="relative">
                 <input
                   id="senha"
@@ -97,18 +80,14 @@
                   ></span>
                 </button>
               </div>
-            </div>
+            </BaseFormField>
 
-            <!-- Botão -->
             <button
               type="submit"
               class="flex w-full items-center justify-center gap-2 rounded-2xl bg-black px-4 py-3.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(0,0,0,0.18)] transition hover:bg-zinc-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="authStore.loading || !form.login || !form.senha"
             >
-              <span
-                v-if="authStore.loading"
-                class="mdi mdi-loading animate-spin text-base"
-              ></span>
+              <span v-if="authStore.loading" class="mdi mdi-loading animate-spin text-base"></span>
               {{ authStore.loading ? 'Entrando...' : 'Entrar' }}
             </button>
           </form>
@@ -122,6 +101,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import BaseFormField from '@/components/base/BaseFormField.vue'
+import BaseAlert from '@/components/base/BaseAlert.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -131,21 +112,6 @@ const mostrarSenha = ref(false)
 
 async function handleLogin() {
   const ok = await authStore.login(form.value.login, form.value.senha)
-
-  if (ok) {
-    router.push({ name: 'home' })
-  }
+  if (ok) router.push({ name: 'home' })
 }
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

@@ -91,15 +91,12 @@
               class="grid grid-cols-[1.25rem_1fr_2rem] items-start gap-x-2 gap-y-1.5
                      sm:grid-cols-[1.25rem_1fr_5.5rem_7rem_2rem] sm:items-center sm:gap-y-0"
             >
-              <!-- ① Índice: abrange as linhas do mobile; 1 linha no desktop -->
-              <span
-                :class="[
-                  'self-center text-center text-[11px] font-medium text-slate-400 sm:row-span-1',
-                  sv.quantidade > 1 ? 'row-span-3' : 'row-span-2',
-                ]"
-              >{{ svIdx + 1 }}</span>
+              <!-- ① Índice — row-span-2 mobile, 1 linha desktop -->
+              <span class="row-span-2 self-center text-center text-[11px] font-medium text-slate-400 sm:row-span-1">
+                {{ svIdx + 1 }}
+              </span>
 
-              <!-- ② Select serviço — col-2 linha-1 (mobile) | col-2 (desktop) -->
+              <!-- ② Select — col-2 linha-1 mobile | col-2 desktop -->
               <div class="min-w-0">
                 <div class="relative">
                   <select
@@ -129,35 +126,13 @@
               </div>
 
               <!--
-                ③ Botão remover:
-                  Mobile  → col-3 linha-1 (ao lado do select, no topo da linha)
-                  Desktop → sm:col-start-5 (última coluna, mesma linha)
+                ③ Wrapper linha-2 mobile (col-start-2, col-span-1):
+                   sm:contents → filhos ocupam cols 3 e 4 no desktop.
+                   Vem antes do botão remover para que auto-placement funcione (cols 3→4→5).
               -->
-              <button
-                type="button"
-                :class="[
-                  'self-start mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition',
-                  'sm:col-start-5 sm:mt-0 sm:self-center',
-                  obj.servicos.length > 1
-                    ? 'text-slate-400 hover:bg-red-50 hover:text-red-500'
-                    : 'cursor-not-allowed text-slate-200',
-                ]"
-                :disabled="obj.servicos.length === 1"
-                :aria-label="`Remover serviço ${svIdx + 1}`"
-                :title="obj.servicos.length === 1 ? 'O objeto deve ter ao menos um serviço' : 'Remover serviço'"
-                @click="removerServico(obj._id, sv._id)"
-              >
-                <span class="mdi mdi-minus-circle-outline text-[17px]"></span>
-              </button>
+              <div class="col-start-2 flex items-center gap-2 sm:contents">
 
-              <!--
-                ④ Wrapper linha-2 mobile (col-2 col-span-2):
-                   No desktop (sm:contents) o div dissolve → filhos ocupam cols 3 e 4
-                   A col-5 (remover) já está explícita acima.
-              -->
-              <div class="col-span-2 flex items-center gap-2 sm:contents">
-
-                <!-- Stepper quantidade → col-3 desktop -->
+                <!-- Stepper quantidade → auto col-3 desktop -->
                 <div
                   class="flex h-9 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
                   :aria-label="`Quantidade do serviço ${svIdx + 1}`"
@@ -184,7 +159,7 @@
                   </button>
                 </div>
 
-                <!-- Valor unitário → col-4 desktop -->
+                <!-- Valor unitário → auto col-4 desktop -->
                 <div class="relative flex-1 sm:flex-none sm:w-full">
                   <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400">R$</span>
                   <input
@@ -199,7 +174,29 @@
                   />
                 </div>
 
-              </div><!-- fim wrapper linha-2 -->
+              </div>
+
+              <!--
+                ④ Botão remover:
+                   Mobile  → row-start-1 col-start-3 (linha 1, col 3, ao lado do select)
+                   Desktop → auto col-5 (último, sem col-start explícito para não quebrar auto-placement)
+              -->
+              <button
+                type="button"
+                :class="[
+                  'row-start-1 col-start-3 self-start mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition',
+                  'sm:row-auto sm:col-auto sm:mt-0 sm:self-center',
+                  obj.servicos.length > 1
+                    ? 'text-slate-400 hover:bg-red-50 hover:text-red-500'
+                    : 'cursor-not-allowed text-slate-200',
+                ]"
+                :disabled="obj.servicos.length === 1"
+                :aria-label="`Remover serviço ${svIdx + 1}`"
+                :title="obj.servicos.length === 1 ? 'O objeto deve ter ao menos um serviço' : 'Remover serviço'"
+                @click="removerServico(obj._id, sv._id)"
+              >
+                <span class="mdi mdi-minus-circle-outline text-[17px]"></span>
+              </button>
 
             </div>
           </div>

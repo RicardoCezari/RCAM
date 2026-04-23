@@ -17,8 +17,22 @@ const router = createRouter({
     },
     {
       path: '/novo-cliente',
-      name: 'novo-cliente',
-      component: () => import('@/views/NovoClienteView.vue'),
+      redirect: '/nova-os',
+    },
+    {
+      path: '/nova-os',
+      name: 'nova-os',
+      component: () => import('@/views/NewOsView.vue'),
+    },
+    {
+      path: '/listar-clientes',
+      name: 'listar-clientes',
+      component: () => import('@/views/CustomerListView.vue'),
+    },
+    {
+      path: '/listar-os',
+      name: 'listar-os',
+      component: () => import('@/views/ServiceOrderListView.vue'),
     },
     {
       path: '/:pathMatch(.*)*',
@@ -30,11 +44,11 @@ const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
 
-  if (!to.meta.publica && !auth.isAuthenticated) {
+  if (!to.meta.publica && !auth.isAutenticado) {
     return { name: 'login' }
   }
 
-  if (to.name === 'login' && auth.isAuthenticated) {
+  if (to.name === 'login' && auth.isAutenticado) {
     return { name: 'home' }
   }
 

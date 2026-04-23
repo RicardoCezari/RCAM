@@ -1,6 +1,7 @@
 <template>
+  <AppLayout>
   <section
-    class="min-h-screen bg-[#f5f5f5] px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12"
+    class="px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12"
   >
     <div class="mx-auto w-full max-w-[1680px]">
       <BasePageTitle
@@ -41,10 +42,12 @@
       </BaseDataTable>
     </div>
   </section>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref } from "vue";
+import AppLayout from "@/layouts/AppLayout.vue";
 import BasePageTitle from "@/components/base/BasePageTitle.vue";
 import BaseDataTable from "@/components/base/BaseDataTable.vue";
 

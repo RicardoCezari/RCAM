@@ -9,7 +9,7 @@
       <p class="text-xl font-medium text-slate-500">Navegação rápida</p>
     </section>
 
-    <section class="mt-5 grid grid-cols-2 gap-4 xl:grid-cols-4">
+    <section class="mt-5 grid grid-cols-2 gap-4 xl:grid-cols-3">
       <BaseActionCard
         v-for="card in actionCards"
         :key="card.to"
@@ -30,13 +30,6 @@ const authStore = useAuthStore()
 const nomeUsuario = computed(() => authStore.usuario?.nome || 'usuário')
 
 const actionCards = [
-  {
-    to: '/novo-cliente',
-    icon: 'mdi-account-plus-outline',
-    title: 'Novo cliente',
-    description: 'Cadastre um novo cliente no sistema de forma rápida e organizada.',
-    contentClass: 'bg-black',
-  },
   {
     to: '/nova-os',
     icon: 'mdi-file-document-plus-outline',

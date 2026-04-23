@@ -36,28 +36,21 @@
         class="hidden flex-1 items-center justify-center gap-1 lg:flex xl:gap-2 2xl:gap-3"
       >
         <RouterLink
-          to="/novo-cliente"
-          class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white xl:px-5 2xl:px-6"
-        >
-          Novo cliente
-        </RouterLink>
-
-        <RouterLink
-          to="/new-os"
+          to="/nova-os"
           class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white xl:px-5 2xl:px-6"
         >
           Nova O.S.
         </RouterLink>
 
         <RouterLink
-          to="/customer-list"
+          to="/listar-clientes"
           class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white xl:px-5 2xl:px-6"
         >
           Listar clientes
         </RouterLink>
 
         <RouterLink
-          to="/os-list"
+          to="/listar-os"
           class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white xl:px-5 2xl:px-6"
         >
           Listar O.S.
@@ -146,18 +139,7 @@
         <div class="px-4 py-3">
           <nav class="flex flex-col">
             <RouterLink
-              to="/novo-cliente"
-              class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
-              @click="isMobileMenuOpen = false"
-            >
-              <span>Novo cliente</span>
-              <span
-                class="mdi mdi-chevron-right text-[18px] text-white/45"
-              ></span>
-            </RouterLink>
-
-            <RouterLink
-              to="/new-os"
+              to="/nova-os"
               class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
               @click="isMobileMenuOpen = false"
             >
@@ -168,7 +150,7 @@
             </RouterLink>
 
             <RouterLink
-              to="/customer-list"
+              to="/listar-clientes"
               class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
               @click="isMobileMenuOpen = false"
             >
@@ -179,7 +161,7 @@
             </RouterLink>
 
             <RouterLink
-              to="/os-list"
+              to="/listar-os"
               class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
               @click="isMobileMenuOpen = false"
             >

@@ -1,41 +1,72 @@
 <template>
   <AppLayout>
-  <section
-    class="px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12"
-  >
     <BasePageTitle
       class="mb-8"
       title="Clientes"
       description="Visualize e gerencie os clientes cadastrados."
     />
 
-    <div class="mx-auto w-full max-w-[1680px]">
-      <BaseDataTable
-        :columns="columns"
-        :rows="clientes"
-        empty-text="Nenhum cliente encontrado."
-        actions-label="Ações"
-      >
-        <template #observacoes="{ value }">
-          <span class="line-clamp-2">
-            {{ value || "—" }}
-          </span>
-        </template>
-
-        <template #actions="{ row }">
-          <button
-            type="button"
-            class="inline-flex h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-medium text-black transition hover:bg-black hover:text-white"
-            @click="editarCliente(row)"
-          >
-            Editar
-          </button>
-        </template>
-      </BaseDataTable>
-    </div>
-  </section>
+    <BaseDataTable
+      :columns="columns"
+      :rows="clientes"
+      :loading="carregando"
+      empty-text="Nenhum cliente encontrado."
+      actions-label="Ações"
+    >
+      <template #observacoes="{ value }">
+        <span class="line-clamp-2">{{ value || '—' }}</span>
+      </template>
+      <template #actions="{ row }">
+        <button
+          type="button"
+          class="inline-flex h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-medium text-black transition hover:bg-black hover:text-white"
+          @click="editarCliente(row)"
+        >
+          Editar
+        </button>
+      </template>
+    </BaseDataTable>
   </AppLayout>
 </template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import AppLayout from '@/layouts/AppLayout.vue'
+import BasePageTitle from '@/components/base/BasePageTitle.vue'
+import BaseDataTable from '@/components/base/BaseDataTable.vue'
+import { listarClientes } from '@/services/clientes'
+
+const columns = [
+  { key: 'nome',                label: 'Nome completo',  cellClass: 'text-black' },
+  { key: 'cpf',                 label: 'CPF',            cellClass: 'text-black/75' },
+  { key: 'telefone',            label: 'Telefone',       cellClass: 'text-black/75' },
+  { key: 'email',               label: 'E-mail',         cellClass: 'text-black/75' },
+  {
+    key: 'informacao_adicional', label: 'Observações',
+    slot: 'observacoes', headerClass: 'min-w-[220px]',
+    cellClass: 'text-black/65', nowrap: false,
+  },
+]
+
+const clientes   = ref([])
+const carregando = ref(false)
+
+onMounted(async () => {
+  carregando.value = true
+  try {
+    const res = await listarClientes({ limit: 100 })
+    clientes.value = res.data ?? res
+  } finally {
+    carregando.value = false
+  }
+})
+
+function editarCliente(cliente) {
+  // TODO: abrir modal de edição
+  console.warn('Editar cliente:', cliente.id)
+}
+</script>
+
 
 <script setup>
 import { ref } from "vue";

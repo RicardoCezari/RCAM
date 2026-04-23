@@ -10,16 +10,19 @@ async function listar({ q, limit, offset }) {
   }
 
   const countSql = `SELECT COUNT(*) FROM clientes ${where}`;
+  const dataParams = [...params, limit, offset];
+  const limitIdx   = dataParams.length - 1;
+  const offsetIdx  = dataParams.length;
   const dataSql = `
     SELECT id, nome, telefone, cpf, email, informacao_adicional, data_criacao
     FROM clientes ${where}
     ORDER BY nome
-    LIMIT ${limit} OFFSET ${offset}
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
   `;
 
   const [countRes, dataRes] = await Promise.all([
     pool.query(countSql, params),
-    pool.query(dataSql, params),
+    pool.query(dataSql, dataParams),
   ]);
 
   return { rows: dataRes.rows, total: Number(countRes.rows[0].count) };

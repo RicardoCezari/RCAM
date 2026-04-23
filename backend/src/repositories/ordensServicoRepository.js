@@ -3,6 +3,9 @@ const { pool } = require('../config/database');
 async function listar({ conditions, params, limit, offset }) {
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+  const dataParams = [...params, limit, offset];
+  const limitIdx   = dataParams.length - 1;
+  const offsetIdx  = dataParams.length;
   const sql = `
     SELECT
       os.id, os.numero, os.estado,
@@ -18,13 +21,13 @@ async function listar({ conditions, params, limit, offset }) {
     JOIN usuarios u ON u.id = os.usuario_id
     ${where}
     ORDER BY os.data_criacao DESC
-    LIMIT ${limit} OFFSET ${offset}
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
   `;
   const countSql = `SELECT COUNT(*) FROM ordens_servico os ${where}`;
 
   const [countRes, dataRes] = await Promise.all([
     pool.query(countSql, params),
-    pool.query(sql, params),
+    pool.query(sql, dataParams),
   ]);
 
   return { rows: dataRes.rows, total: Number(countRes.rows[0].count) };

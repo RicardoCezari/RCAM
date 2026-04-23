@@ -1,23 +1,89 @@
 <template>
   <AppLayout>
-  <section
-    class="px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12"
-  >
-    <div class="mx-auto w-full max-w-[1680px]">
-      <BasePageTitle
-        class="mb-8"
-        title="Listar O.S."
-        description="Visualize e gerencie as ordens de serviço cadastradas."
-      />
+    <BasePageTitle
+      class="mb-8"
+      title="Ordens de Serviço"
+      description="Visualize e gerencie as ordens de serviço cadastradas."
+    />
 
-      <BaseDataTable
-        :columns="columns"
-        :rows="serviceOrders"
-        row-key="id"
-        empty-text="Nenhuma ordem de serviço encontrada."
-        actions-label="Ações"
-        actions-header-class="w-[120px]"
-        actions-cell-class="w-[120px]"
+    <BaseDataTable
+      :columns="columns"
+      :rows="ordens"
+      :loading="carregando"
+      row-key="id"
+      empty-text="Nenhuma ordem de serviço encontrada."
+      actions-label="Ações"
+      actions-header-class="w-[120px]"
+      actions-cell-class="w-[120px]"
+    >
+      <template #status="{ value }">
+        <span
+          class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+          :class="statusClass(value)"
+        >
+          {{ value || '—' }}
+        </span>
+      </template>
+      <template #actions="{ row }">
+        <button
+          type="button"
+          class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-white text-black transition hover:-translate-y-[1px] hover:bg-black hover:text-white"
+          title="Editar O.S."
+          aria-label="Editar O.S."
+          @click="editarOrdem(row)"
+        >
+          <i class="mdi mdi-pencil-outline text-lg"></i>
+        </button>
+      </template>
+    </BaseDataTable>
+  </AppLayout>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import AppLayout from '@/layouts/AppLayout.vue'
+import BasePageTitle from '@/components/base/BasePageTitle.vue'
+import BaseDataTable from '@/components/base/BaseDataTable.vue'
+import { listarOrdens } from '@/services/ordensServico'
+
+const STATUS_CLASSES = {
+  'Concluído':   'bg-emerald-100 text-emerald-700',
+  'Pendente':    'bg-amber-100 text-amber-700',
+  'Atrasado':    'bg-red-100 text-red-700',
+}
+
+const columns = [
+  { key: 'cliente',      label: 'Cliente',           headerClass: 'min-w-[220px]', cellClass: 'text-black/80' },
+  { key: 'telefone',     label: 'Telefone',           headerClass: 'min-w-[180px]', cellClass: 'whitespace-nowrap text-black/75' },
+  { key: 'objeto',       label: 'Objeto',             headerClass: 'min-w-[180px]', cellClass: 'text-black/75' },
+  { key: 'status',       label: 'Status',             headerClass: 'min-w-[140px]', slot: 'status' },
+  { key: 'data_entrega', label: 'Data de entrega',    headerClass: 'min-w-[150px]', cellClass: 'whitespace-nowrap text-black/75' },
+  { key: 'valor',        label: 'Valor',              headerClass: 'min-w-[140px]', cellClass: 'whitespace-nowrap text-black/75' },
+]
+
+const ordens     = ref([])
+const carregando = ref(false)
+
+onMounted(async () => {
+  carregando.value = true
+  try {
+    const res = await listarOrdens({ limit: 100 })
+    ordens.value = res.data ?? res
+  } finally {
+    carregando.value = false
+  }
+})
+
+function statusClass(status) {
+  return STATUS_CLASSES[status] ?? 'bg-black/5 text-black/60'
+}
+
+function editarOrdem(ordem) {
+  // TODO: abrir modal de edição
+  console.warn('Editar O.S.:', ordem.id)
+}
+</script>
+
       >
         <template #status="{ value }">
           <span

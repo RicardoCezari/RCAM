@@ -137,6 +137,8 @@ router.post(
   [
     body('nome').trim().notEmpty().withMessage('Nome é obrigatório'),
     body('valor').isFloat({ min: 0 }).withMessage('Valor deve ser maior ou igual a 0'),
+    body('tipo_ids').optional().isArray().withMessage('tipo_ids deve ser um array'),
+    body('tipo_ids.*').optional().isInt({ min: 1 }).withMessage('IDs de tipo inválidos'),
     validate,
   ],
   ctrl.criar
@@ -147,6 +149,8 @@ router.put(
   [
     body('nome').optional().trim().notEmpty().withMessage('Nome não pode ser vazio'),
     body('valor').optional().isFloat({ min: 0 }).withMessage('Valor deve ser maior ou igual a 0'),
+    body('tipo_ids').optional().isArray().withMessage('tipo_ids deve ser um array'),
+    body('tipo_ids.*').optional().isInt({ min: 1 }).withMessage('IDs de tipo inválidos'),
     validate,
   ],
   ctrl.atualizar

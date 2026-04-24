@@ -59,6 +59,20 @@
           >
             Listar O.S.
           </RouterLink>
+          <RouterLink
+            to="/cadastrar-servicos"
+            class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            active-class="bg-white/10 !text-white"
+          >
+            Serviços
+          </RouterLink>
+          <RouterLink
+            to="/cadastrar-objetos"
+            class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            active-class="bg-white/10 !text-white"
+          >
+            Tipos de objeto
+          </RouterLink>
         </nav>
 
         <!-- right actions -->
@@ -148,6 +162,24 @@
                 @click="isMobileMenuOpen = false"
               >
                 <span>Listar O.S.</span>
+                <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
+              </RouterLink>
+
+              <p class="pb-1 pt-5 text-[11px] font-semibold uppercase tracking-widest text-white/35">Cadastros</p>
+              <RouterLink
+                to="/cadastrar-servicos"
+                class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
+                @click="isMobileMenuOpen = false"
+              >
+                <span>Serviços</span>
+                <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
+              </RouterLink>
+              <RouterLink
+                to="/cadastrar-objetos"
+                class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
+                @click="isMobileMenuOpen = false"
+              >
+                <span>Tipos de objeto</span>
                 <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
               </RouterLink>
 

@@ -1,9 +1,10 @@
 const AppError = require('../utils/AppError');
 const servicosRepository = require('../repositories/servicosRepository');
 
-async function listar({ ativo } = {}) {
+async function listar({ ativo, tipoObjetoId } = {}) {
   const ativoFiltro = ativo === undefined ? undefined : (ativo === 'true' || ativo === true);
-  return servicosRepository.listar({ ativoFiltro });
+  const tipoId = tipoObjetoId ? Number(tipoObjetoId) : undefined;
+  return servicosRepository.listar({ ativoFiltro, tipoObjetoId: tipoId });
 }
 
 async function buscarPorId(id) {
@@ -12,13 +13,23 @@ async function buscarPorId(id) {
   return servico;
 }
 
-async function criar({ nome, valor, descricao, ativo = true }) {
-  return servicosRepository.criar({ nome, valor, descricao, ativo });
+async function criar({ nome, valor, descricao, ativo = true, tipoIds = [] }) {
+  const servico = await servicosRepository.criar({ nome, valor, descricao, ativo });
+  if (tipoIds.length) await servicosRepository.definirTipos(servico.id, tipoIds);
+  return servicosRepository.buscarPorId(servico.id);
 }
 
-async function atualizar(id, { nome, valor, descricao, ativo }) {
+async function atualizar(id, { nome, valor, descricao, ativo, tipoIds }) {
   await buscarPorId(id);
-  return servicosRepository.atualizar(id, { nome, valor, descricao, ativo });
+  const servico = await servicosRepository.atualizar(id, { nome, valor, descricao, ativo });
+  if (Array.isArray(tipoIds)) await servicosRepository.definirTipos(id, tipoIds);
+  return servicosRepository.buscarPorId(servico.id);
+}
+
+async function definirTipos(id, tipoIds) {
+  await buscarPorId(id);
+  await servicosRepository.definirTipos(id, tipoIds);
+  return servicosRepository.buscarPorId(id);
 }
 
 async function deletar(id) {
@@ -34,4 +45,4 @@ async function deletar(id) {
   return null;
 }
 
-module.exports = { listar, buscarPorId, criar, atualizar, deletar };
+module.exports = { listar, buscarPorId, criar, atualizar, definirTipos, deletar };

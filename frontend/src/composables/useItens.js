@@ -96,6 +96,15 @@ export function useItens(tiposObjeto, servicosDisp) {
     return tiposObjeto.value?.find(t => String(t.id) === String(tipoId))?.nome || ''
   }
 
+  function mudarTipoObjeto(objetoId, tipoId) {
+    const obj = objetos.value.find(o => o._id === objetoId)
+    if (!obj) return
+    obj.tipo_objeto_id = tipoId
+    // Reseta os serviços sempre que o tipo muda para evitar seleções inválidas
+    obj.servicos = [novoServico()]
+    if (erros.value[objetoId]) erros.value[objetoId].tipo = ''
+  }
+
   // ── serviços ──────────────────────────────────────────────────────────────
   function adicionarServico(objetoId) {
     const obj = objetos.value.find(o => o._id === objetoId)
@@ -207,7 +216,7 @@ export function useItens(tiposObjeto, servicosDisp) {
   return {
     objetos, erros, totalGeral, totalObjeto,
     descontoStr, totalFinal,
-    nomeTipoObjeto,
+    nomeTipoObjeto, mudarTipoObjeto,
     adicionarObjeto, removerObjeto,
     adicionarServico, removerServico, mudarQuantidade,
     aoSelecionarServico, aoEditarValor, aoBlurValor,

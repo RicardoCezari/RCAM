@@ -6,12 +6,24 @@
     />
 
     <section class="mt-8 sm:mt-10">
-      <p class="text-xl font-medium text-slate-500">Navegação rápida</p>
+      <p class="text-xl font-medium text-slate-500">Atendimento</p>
     </section>
 
     <section class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <BaseActionCard
-        v-for="card in actionCards"
+        v-for="card in atendimentoCards"
+        :key="card.to"
+        v-bind="card"
+      />
+    </section>
+
+    <section class="mt-8 sm:mt-10">
+      <p class="text-xl font-medium text-slate-500">Cadastros</p>
+    </section>
+
+    <section class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <BaseActionCard
+        v-for="card in cadastrosCards"
         :key="card.to"
         v-bind="card"
       />
@@ -29,7 +41,7 @@ import { useAuthStore } from '@/stores/auth'
 const authStore = useAuthStore()
 const nomeUsuario = computed(() => authStore.usuario?.nome || 'usuário')
 
-const actionCards = [
+const atendimentoCards = [
   {
     to: '/nova-os',
     icon: 'mdi-file-document-plus-outline',
@@ -49,6 +61,23 @@ const actionCards = [
     icon: 'mdi-format-list-bulleted-square',
     title: 'Listar O.S.',
     description: 'Consulte e acompanhe as ordens de serviço cadastradas.',
+    contentClass: 'bg-[#111111]',
+  },
+]
+
+const cadastrosCards = [
+  {
+    to: '/cadastrar-servicos',
+    icon: 'mdi-tools',
+    title: 'Serviços',
+    description: 'Gerencie o catálogo de serviços e associe-os aos tipos de objeto.',
+    contentClass: 'bg-black',
+  },
+  {
+    to: '/cadastrar-objetos',
+    icon: 'mdi-shape-outline',
+    title: 'Tipos de objeto',
+    description: 'Gerencie os tipos de peças aceitas (relógio, anel, pulseira, etc.).',
     contentClass: 'bg-[#111111]',
   },
 ]

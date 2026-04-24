@@ -222,6 +222,7 @@
               @blur-valor="aoBlurValor"
               @editar-desconto="aoEditarDesconto"
               @blur-desconto="aoBlurDesconto"
+              @mudar-tipo="mudarTipoObjeto"
             />
 
             <!-- Separador -->
@@ -474,7 +475,7 @@ const {
 const {
   objetos, erros: errosItens, totalGeral, totalObjeto,
   descontoStr, totalFinal,
-  nomeTipoObjeto,
+  nomeTipoObjeto, mudarTipoObjeto,
   adicionarObjeto, removerObjeto,
   adicionarServico, removerServico, mudarQuantidade,
   aoSelecionarServico, aoEditarValor, aoBlurValor,

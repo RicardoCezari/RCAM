@@ -46,13 +46,14 @@
           <div class="relative">
             <select
               :id="`tipo-${obj._id}`"
-              v-model="obj.tipo_objeto_id"
+              :value="obj.tipo_objeto_id"
               :class="[
                 'w-full appearance-none rounded-xl border bg-slate-50 px-4 py-3 pr-8 text-sm text-slate-900 outline-none transition focus:bg-white focus:ring-2',
                 erros[obj._id]?.tipo
                   ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
                   : 'border-slate-200 focus:border-black focus:ring-black/10',
               ]"
+              @change="aoMudarTipo(obj._id, $event.target.value)"
             >
               <option value="" disabled>
                 {{ carregando ? 'Carregando tipos...' : 'Selecione o tipo de objeto' }}
@@ -98,7 +99,11 @@
 
               <!-- ② Select — col-2 linha-1 mobile | col-2 desktop -->
               <div class="min-w-0">
-                <div class="relative">
+                <div v-if="!obj.tipo_objeto_id" class="flex h-10 items-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 text-xs text-slate-400">
+                  <span class="mdi mdi-arrow-up-left mr-1.5 text-[13px]"></span>
+                  Selecione o tipo de objeto primeiro
+                </div>
+                <div v-else class="relative">
                   <select
                     :value="sv.servico_id"
                     :class="[
@@ -112,7 +117,7 @@
                     <option value="" disabled>
                       {{ carregando ? 'Carregando serviços...' : 'Selecione um serviço' }}
                     </option>
-                    <option v-for="s in servicos" :key="s.id" :value="String(s.id)">
+                    <option v-for="s in servicosParaObjeto(obj)" :key="s.id" :value="String(s.id)">
                       {{ s.nome }}
                     </option>
                   </select>
@@ -284,7 +289,21 @@ const emit = defineEmits([
   'adicionar-servico', 'remover-servico',
   'selecionar-servico', 'editar-valor', 'blur-valor',
   'editar-desconto', 'blur-desconto',
+  'mudar-tipo',
 ])
+
+function aoMudarTipo(objId, tipoId) {
+  emit('mudar-tipo', objId, tipoId)
+}
+
+function servicosParaObjeto(obj) {
+  if (!obj.tipo_objeto_id) return props.servicos
+  const tipoId = Number(obj.tipo_objeto_id)
+  return props.servicos.filter(s => {
+    const ids = s.tipo_ids
+    return !ids || ids.length === 0 || ids.includes(tipoId)
+  })
+}
 
 const adicionarObjeto  = ()           => emit('adicionar-objeto')
 const removerObjeto    = (id)         => emit('remover-objeto', id)

@@ -2,7 +2,10 @@ const servicosService = require('../services/servicosService');
 
 async function listar(req, res, next) {
   try {
-    res.json(await servicosService.listar({ ativo: req.query.ativo }));
+    res.json(await servicosService.listar({
+      ativo: req.query.ativo,
+      tipoObjetoId: req.query.tipo_objeto_id,
+    }));
   } catch (err) {
     next(err);
   }
@@ -18,7 +21,8 @@ async function buscarPorId(req, res, next) {
 
 async function criar(req, res, next) {
   try {
-    res.status(201).json(await servicosService.criar(req.body));
+    const { nome, valor, descricao, ativo, tipo_ids } = req.body;
+    res.status(201).json(await servicosService.criar({ nome, valor, descricao, ativo, tipoIds: tipo_ids || [] }));
   } catch (err) {
     next(err);
   }
@@ -26,7 +30,8 @@ async function criar(req, res, next) {
 
 async function atualizar(req, res, next) {
   try {
-    res.json(await servicosService.atualizar(req.params.id, req.body));
+    const { nome, valor, descricao, ativo, tipo_ids } = req.body;
+    res.json(await servicosService.atualizar(req.params.id, { nome, valor, descricao, ativo, tipoIds: tipo_ids }));
   } catch (err) {
     next(err);
   }

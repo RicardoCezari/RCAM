@@ -35,6 +35,16 @@ const router = createRouter({
       component: () => import('@/views/ServiceOrderListView.vue'),
     },
     {
+      path: '/cadastrar-servicos',
+      name: 'cadastrar-servicos',
+      component: () => import('@/views/ServicosCadastroView.vue'),
+    },
+    {
+      path: '/cadastrar-objetos',
+      name: 'cadastrar-objetos',
+      component: () => import('@/views/ObjetosCadastroView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/',
     },

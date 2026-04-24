@@ -23,11 +23,13 @@ function formatarTelefone(raw) {
 
 // DDD brasileiro válido: 11-99 (sem 0X)
 // Celular: 11 dígitos, 3º dígito = 9
-// Fixo:    10 dígitos
+// Fixo:    10 dígitos, 3º dígito ≠ 9
 function _telefoneValido(digits) {
   if (digits.length !== 10 && digits.length !== 11) return { ok: false, msg: 'Telefone incompleto.' }
   const ddd = parseInt(digits.slice(0, 2), 10)
   if (ddd < 11 || ddd > 99) return { ok: false, msg: 'DDD inválido.' }
+  // 10 dígitos começando com 9 após o DDD = celular sem o 9 obrigatório
+  if (digits.length === 10 && digits[2] === '9') return { ok: false, msg: 'Celular incompleto: falta o 9 obrigatório. Ex: (38) 99997-8848.' }
   if (digits.length === 11 && digits[2] !== '9') return { ok: false, msg: 'Celular deve ter 9 como primeiro dígito após o DDD.' }
   return { ok: true }
 }
@@ -73,20 +75,39 @@ export function useClienteForm() {
     const v = formatarTelefone(d)
     cliente.telefone = v
 
+    // Limpa erro a cada digitação para não deixar mensagem antiga na tela
+    erros.telefone = ''
+
     if (clienteVinculado.value) {
       sugestaoTel.value = null
-      avisoSubstituirTel.value = v !== telOriginal.value
+      if (v !== telOriginal.value) {
+        // Valida o novo número antes de mostrar o banner de substituição
+        const check = _telefoneValido(d)
+        if (!check.ok) {
+          tocados['telefone'] = true
+          erros.telefone = check.msg
+          avisoSubstituirTel.value = false
+        } else {
+          avisoSubstituirTel.value = true
+        }
+      } else {
+        avisoSubstituirTel.value = false
+      }
       return
     }
     avisoSubstituirTel.value = false
     if (d.length === 10 || d.length === 11) {
       const check = _telefoneValido(d)
       if (check.ok) {
-        if (tocados['telefone']) erros.telefone = ''
         _buscarPorTelefone(d)
       } else {
         sugestaoTel.value = null
-        if (tocados['telefone']) erros.telefone = check.msg
+        // Mostrar erro imediato quando celular incompleto (10 dígitos + 9 após DDD)
+        const celuarIncompleto = d.length === 10 && d[2] === '9'
+        if (tocados['telefone'] || celuarIncompleto) {
+          tocados['telefone'] = true
+          erros.telefone = check.msg
+        }
       }
     } else {
       sugestaoTel.value = null
@@ -142,6 +163,14 @@ export function useClienteForm() {
   }
 
   async function substituirTelefone() {
+    const d = cliente.telefone.replace(/\D/g, '')
+    const check = _telefoneValido(d)
+    if (!check.ok) {
+      tocados['telefone'] = true
+      erros.telefone = check.msg
+      avisoSubstituirTel.value = false
+      return
+    }
     loadingSubstituir.value = true
     try {
       const atualizado = await atualizarCliente(clienteVinculado.value.id, {

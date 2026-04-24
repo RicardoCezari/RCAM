@@ -156,7 +156,12 @@ router.post(
   '/',
   [
     body('nome').trim().notEmpty().withMessage('Nome é obrigatório'),
-    body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório'),
+    body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório')
+      .custom(v => {
+        const d = v.replace(/\D/g, '');
+        if (d.length === 10 && d[2] === '9') throw new Error('Celular incompleto: falta o 9 obrigatório após o DDD.');
+        return true;
+      }),
     body('cpf').optional({ nullable: true }).isLength({ min: 11, max: 11 }).withMessage('CPF deve ter 11 dígitos'),
     body('email').optional({ nullable: true }).isEmail().withMessage('E-mail inválido'),
     validate,

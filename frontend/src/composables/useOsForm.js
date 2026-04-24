@@ -10,6 +10,14 @@ function cls(base, hasError) {
     : `${base} border-slate-200 focus:border-black focus:ring-black/10`
 }
 
+function hojeISO() {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm   = String(d.getMonth() + 1).padStart(2, '0')
+  const dd   = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export function useOsForm() {
   const os = reactive({
     estado:      'ENTRADA',
@@ -46,7 +54,13 @@ export function useOsForm() {
 
   function _validarCampo(campo) {
     erros[campo] = ''
-    if (campo === 'dataEntrega' && !os.dataEntrega) erros.dataEntrega = 'Informe a data de entrega.'
+    if (campo === 'dataEntrega') {
+      if (!os.dataEntrega) {
+        erros.dataEntrega = 'Informe a data de entrega.'
+      } else if (os.dataEntrega < hojeISO()) {
+        erros.dataEntrega = 'A data de entrega não pode ser no passado.'
+      }
+    }
   }
 
   function validar() {
@@ -69,6 +83,7 @@ export function useOsForm() {
 
   return {
     os, erros, dateInputRef, tiposObjeto, servicos, carregando,
+    minDate: hojeISO(),
     inputClass, touch, validar,
     openDatePicker, reset,
   }

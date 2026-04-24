@@ -227,10 +227,36 @@
     <!-- ── Total geral ─────────────────────────────────────── -->
     <div
       v-if="totalGeral > 0"
-      class="flex items-center justify-between rounded-2xl border border-black/8 bg-black px-5 py-4 text-white"
+      class="overflow-hidden rounded-2xl border border-black/8 bg-black text-white"
     >
-      <p class="text-sm font-medium">Total geral</p>
-      <p class="text-xl font-black tracking-tight">{{ formatarMoeda(totalGeral) }}</p>
+      <!-- Subtotal (só aparece quando há desconto) -->
+      <div v-if="parseMoeda(descontoStr) > 0" class="flex items-center justify-between px-5 pt-4">
+        <p class="text-sm text-white/55">Subtotal</p>
+        <p class="text-sm text-white/55">{{ formatarMoeda(totalGeral) }}</p>
+      </div>
+
+      <!-- Linha do desconto (sempre visível) -->
+      <div class="flex items-center justify-between px-5 pt-4" :class="{ 'pt-2': parseMoeda(descontoStr) > 0 }">
+        <p class="text-sm text-white/70">Desconto</p>
+        <div class="relative">
+          <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-white/50">− R$</span>
+          <input
+            :value="descontoStr"
+            type="text"
+            inputmode="decimal"
+            placeholder="0,00"
+            class="w-32 rounded-lg border border-white/20 bg-white/10 py-1.5 pl-10 pr-3 text-right text-sm font-semibold text-white placeholder:text-white/30 outline-none transition focus:border-white/50 focus:bg-white/15"
+            @input="aoEditarDesconto"
+            @blur="aoBlurDesconto"
+          />
+        </div>
+      </div>
+
+      <!-- Total final -->
+      <div class="flex items-center justify-between px-5 py-4" :class="{ 'pt-2': true }">
+        <p class="text-sm font-medium">Total</p>
+        <p class="text-xl font-black tracking-tight">{{ formatarMoeda(totalFinal) }}</p>
+      </div>
     </div>
 
   </div>
@@ -245,6 +271,8 @@ const props = defineProps({
   tiposObjeto:    { type: Array,    default: () => [] },
   servicos:       { type: Array,    default: () => [] },
   totalGeral:     { type: Number,   default: 0 },
+  totalFinal:     { type: Number,   default: 0 },
+  descontoStr:    { type: String,   default: '' },
   totalObjeto:    { type: Function, required: true },
   nomeTipoObjeto: { type: Function, required: true },
   mudarQuantidade:{ type: Function, required: true },
@@ -255,6 +283,7 @@ const emit = defineEmits([
   'adicionar-objeto', 'remover-objeto',
   'adicionar-servico', 'remover-servico',
   'selecionar-servico', 'editar-valor', 'blur-valor',
+  'editar-desconto', 'blur-desconto',
 ])
 
 const adicionarObjeto  = ()           => emit('adicionar-objeto')
@@ -270,5 +299,11 @@ function aoEditarValor(objId, svId, e) {
 }
 function aoBlurValor(objId, svId) {
   emit('blur-valor', objId, svId)
+}
+function aoEditarDesconto(e) {
+  emit('editar-desconto', e)
+}
+function aoBlurDesconto() {
+  emit('blur-desconto')
 }
 </script>

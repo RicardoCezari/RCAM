@@ -8,17 +8,30 @@ export function formatarMoeda(num) {
 
 export function parseMoeda(str) {
   if (!str && str !== 0) return 0
-  // normaliza separador decimal: ponto ou vírgula
+  // Formato brasileiro: pontos são separadores de milhar, vírgula é decimal
   const s = String(str)
-    .replace(/[^\d.,]/g, '')   // remove tudo exceto dígito, ponto e vírgula
-    .replace(',', '.')          // vírgula → ponto
-    .replace(/(\..*)\./g, '$1') // mantém apenas o último ponto (ex: '1.234.56' → '1234.56' não, mas isso é raro)
-  // se houver separador de milhar (1.234) sem decimal extra:
-  // heurística: se há ponto e os dígitos após são exatamente 3, é milhar
+    .replace(/[R$\s]/g, '')   // remove símbolo e espaços
+    .replace(/\./g,  '')      // remove separadores de milhar
+    .replace(',',    '.')     // vírgula decimal → ponto
+    .replace(/[^\d.]/g, '')   // remove resto
   const num = Number(s)
   return isNaN(num) ? 0 : num
 }
 
+// Máscara estilo calculadora: trata dígitos como centavos → "X.XXX,XX"
+function mascaraMonetaria(raw) {
+  const digits = String(raw || '').replace(/\D/g, '').replace(/^0+/, '') || '0'
+  const padded  = digits.padStart(3, '0')
+  const intPart = padded.slice(0, -2)
+  const decPart = padded.slice(-2)
+  return `${parseInt(intPart, 10).toLocaleString('pt-BR')},${decPart}`
+}
+
+// Converte número decimal para string de centavos, depois aplica a máscara
+function numeroParaMascara(num) {
+  const cents = Math.round(Math.abs(Number(num) || 0) * 100)
+  return cents > 0 ? mascaraMonetaria(String(cents)) : ''
+}
 function novoServico(servico = null) {
   return {
     _id:        crypto.randomUUID(),
@@ -26,7 +39,7 @@ function novoServico(servico = null) {
     nome:       servico?.nome ?? '',
     quantidade: 1,
     valor:      servico ? String(servico.valor ?? 0) : '',
-    _valorStr:  servico ? formatarMoeda(servico.valor) : '',
+    _valorStr:  servico ? numeroParaMascara(servico.valor ?? 0) : '',
   }
 }
 
@@ -47,6 +60,22 @@ export function useItens(tiposObjeto, servicosDisp) {
     objetos.value.reduce((sum, obj) =>
       sum + obj.servicos.reduce((s, sv) => s + parseMoeda(sv._valorStr) * sv.quantidade, 0), 0)
   )
+
+  const descontoStr = ref('')
+
+  const totalFinal = computed(() => {
+    const d = parseMoeda(descontoStr.value)
+    return Math.max(0, totalGeral.value - d)
+  })
+
+  function aoEditarDesconto(e) {
+    const masked = mascaraMonetaria(e.target.value)
+    descontoStr.value = masked === '0,00' ? '' : masked
+  }
+
+  function aoBlurDesconto() {
+    // já formatado pelo @input, nada a fazer
+  }
 
   function totalObjeto(obj) {
     return obj.servicos.reduce((s, sv) => s + parseMoeda(sv._valorStr) * sv.quantidade, 0)
@@ -96,8 +125,8 @@ export function useItens(tiposObjeto, servicosDisp) {
     sv.servico_id = String(servicoId)
     sv.nome       = svcDados?.nome ?? ''
     if (svcDados?.valor) {
-      sv.valor    = String(svcDados.valor)
-      sv._valorStr = formatarMoeda(svcDados.valor)
+      sv.valor     = String(svcDados.valor)
+      sv._valorStr = numeroParaMascara(svcDados.valor)
     }
     _limparErroServico(objetoId, svcId)
   }
@@ -107,25 +136,19 @@ export function useItens(tiposObjeto, servicosDisp) {
     if (!obj) return
     const sv = obj.servicos.find(s => s._id === svcId)
     if (!sv) return
-    // aceita dígitos, vírgula e ponto (usuário pode usar qualquer um como decimal)
-    // normaliza ponto para vírgula na exibição
-    const raw = e.target.value
-      .replace(/[^\d.,]/g, '')   // remove caracteres inválidos
-      .replace('.', ',')          // normaliza para vírgula
-      .replace(/(,.*),/g, '$1')   // permite apenas uma vírgula
-    sv._valorStr = raw
-    sv.valor     = raw
+    const masked = mascaraMonetaria(e.target.value)
+    sv._valorStr = masked === '0,00' ? '' : masked
+    sv.valor     = String(parseMoeda(masked) || '')
   }
 
   function aoBlurValor(objetoId, svcId) {
+    // Nada a fazer: o campo já está formatado pelo @input
+    // Apenas garante que valor némrico está sincronizado
     const obj = objetos.value.find(o => o._id === objetoId)
     if (!obj) return
     const sv = obj.servicos.find(s => s._id === svcId)
     if (!sv) return
-    // formata ao perder foco
-    const n = parseMoeda(sv._valorStr)
-    sv._valorStr = n > 0 ? formatarMoeda(n) : ''
-    sv.valor     = String(n || '')
+    sv.valor = String(parseMoeda(sv._valorStr) || '')
   }
 
   // ── validação ─────────────────────────────────────────────────────────────
@@ -176,16 +199,19 @@ export function useItens(tiposObjeto, servicosDisp) {
   }
 
   function reset() {
-    objetos.value = [novoObjeto()]
-    erros.value   = {}
+    objetos.value    = [novoObjeto()]
+    erros.value      = {}
+    descontoStr.value = ''
   }
 
   return {
     objetos, erros, totalGeral, totalObjeto,
+    descontoStr, totalFinal,
     nomeTipoObjeto,
     adicionarObjeto, removerObjeto,
     adicionarServico, removerServico, mudarQuantidade,
     aoSelecionarServico, aoEditarValor, aoBlurValor,
+    aoEditarDesconto, aoBlurDesconto,
     validar, toItens, reset,
   }
 }

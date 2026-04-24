@@ -207,6 +207,8 @@
               :tipos-objeto="tiposObjeto"
               :servicos="servicos"
               :total-geral="totalGeral"
+              :total-final="totalFinal"
+              :desconto-str="descontoStr"
               :total-objeto="totalObjeto"
               :nome-tipo-objeto="nomeTipoObjeto"
               :mudar-quantidade="mudarQuantidade"
@@ -218,6 +220,8 @@
               @selecionar-servico="aoSelecionarServico"
               @editar-valor="aoEditarValor"
               @blur-valor="aoBlurValor"
+              @editar-desconto="aoEditarDesconto"
+              @blur-desconto="aoBlurDesconto"
             />
 
             <!-- Separador -->
@@ -227,13 +231,13 @@
             <div class="mb-4 grid gap-4 sm:grid-cols-2">
               <BaseFormField id="os-data" label="Data de entrega" required :error="errosOs.dataEntrega">
                 <input id="os-data" ref="dateInputRef" v-model="os.dataEntrega" type="date"
+                  :min="minDate"
                   :class="inputClassOs('dataEntrega')"
-                  @blur="touchOs('dataEntrega')" @click="openDatePicker" />
+                  @change="touchOs('dataEntrega')" @blur="touchOs('dataEntrega')" @click="openDatePicker" />
               </BaseFormField>
 
               <BaseFormField id="os-hora" label="Hora de entrega" optional>
-                <input id="os-hora" v-model="os.horaEntrega" type="time"
-                  :class="inputClassOs('horaEntrega')" />
+                <BaseTimePicker id="os-hora" v-model="os.horaEntrega" />
               </BaseFormField>
             </div>
 
@@ -423,6 +427,7 @@ import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
 import WizardSteps from '@/components/base/WizardSteps.vue'
 import ClienteVinculadoBanner from '@/components/base/ClienteVinculadoBanner.vue'
+import BaseTimePicker from '@/components/base/BaseTimePicker.vue'
 import OsItensEditor from '@/components/os/OsItensEditor.vue'
 import { useClienteForm } from '@/composables/useClienteForm'
 import { useOsForm } from '@/composables/useOsForm'
@@ -461,16 +466,19 @@ const {
 
 const {
   os, erros: errosOs, dateInputRef, tiposObjeto, servicos, carregando,
+  minDate,
   inputClass: inputClassOs, touch: touchOs, validar: validarOs,
   openDatePicker, reset: resetOs,
 } = useOsForm()
 
 const {
   objetos, erros: errosItens, totalGeral, totalObjeto,
+  descontoStr, totalFinal,
   nomeTipoObjeto,
   adicionarObjeto, removerObjeto,
   adicionarServico, removerServico, mudarQuantidade,
   aoSelecionarServico, aoEditarValor, aoBlurValor,
+  aoEditarDesconto, aoBlurDesconto,
   validar: validarItens, toItens, reset: resetItens,
 } = useItens(tiposObjeto, servicos)
 
@@ -487,7 +495,7 @@ const resumo = computed(() => [
   { label: 'Cliente',       valor: cliente.nome },
   { label: 'Telefone',      valor: cliente.telefone || '—' },
   { label: 'Objetos',       valor: objetos.value.length + (objetos.value.length !== 1 ? ' objetos' : ' objeto') },
-  { label: 'Total',         valor: totalGeral.value > 0 ? formatarMoeda(totalGeral.value) : '—' },
+  { label: 'Total',         valor: totalFinal.value > 0 ? formatarMoeda(totalFinal.value) : '—' },
   { label: 'Data de entrega',valor: os.dataEntrega ? formatarData(os.dataEntrega) : '—' },
   { label: 'Hora de entrega',valor: os.horaEntrega || '—' },
   { label: 'Fotos',         valor: fotoPreviews.value.length + (fotoPreviews.value.length !== 1 ? ' fotos' : ' foto') },

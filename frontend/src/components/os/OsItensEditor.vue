@@ -8,27 +8,23 @@
       class="overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.05)]"
     >
       <!-- Cabeçalho do objeto -->
-      <div class="flex items-center gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3">
+      <div class="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50 px-4 py-3">
         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black text-[11px] font-bold text-white">
           {{ objIdx + 1 }}
         </div>
-        <!-- Quando selecionado: nome do tipo. Antes: placeholder cinza -->
         <div class="min-w-0 flex-1">
           <p v-if="obj.tipo_objeto_id" class="truncate text-sm font-semibold text-slate-900">
             {{ nomeTipoObjeto(obj.tipo_objeto_id) }}
           </p>
           <p v-else class="text-sm text-slate-400">Objeto {{ objIdx + 1 }}</p>
+          <p v-if="totalObjeto(obj) > 0" class="text-[11px] font-semibold text-slate-500">
+            {{ formatarMoeda(totalObjeto(obj)) }}
+          </p>
         </div>
-        <!-- Total do objeto -->
-        <div v-if="totalObjeto(obj) > 0" class="shrink-0 text-right">
-          <p class="text-[10px] text-slate-400">Total</p>
-          <p class="text-sm font-bold text-slate-900">{{ formatarMoeda(totalObjeto(obj)) }}</p>
-        </div>
-        <!-- Remover objeto -->
         <button
           v-if="objetos.length > 1"
           type="button"
-          class="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
           :aria-label="`Remover objeto ${objIdx + 1}`"
           title="Remover objeto"
           @click="removerObjeto(obj._id)"
@@ -40,9 +36,23 @@
       <div class="p-4">
         <!-- Tipo de objeto -->
         <div class="mb-4">
-          <label :for="`tipo-${obj._id}`" class="mb-1.5 block text-sm font-medium text-slate-700">
-            Tipo de objeto <span class="text-red-500">*</span>
-          </label>
+          <div class="mb-1.5 flex items-center justify-between">
+            <label :for="`tipo-${obj._id}`" class="text-sm font-medium text-slate-700">
+              Tipo de objeto <span class="text-red-500">*</span>
+            </label>
+            <label class="flex cursor-pointer items-center gap-1.5 select-none">
+              <span
+                :class="[
+                  'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition',
+                  obj.eh_orcamento ? 'border-black bg-black' : 'border-slate-300 bg-white',
+                ]"
+              >
+                <span v-if="obj.eh_orcamento" class="mdi mdi-check text-[11px] font-black text-white"></span>
+              </span>
+              <span class="text-xs font-medium text-slate-500">Orçamento</span>
+              <input type="checkbox" class="sr-only" :checked="obj.eh_orcamento" @change="aoToggleOrcamento(obj._id, !obj.eh_orcamento)" />
+            </label>
+          </div>
           <div class="relative">
             <select
               :id="`tipo-${obj._id}`"
@@ -289,11 +299,15 @@ const emit = defineEmits([
   'adicionar-servico', 'remover-servico',
   'selecionar-servico', 'editar-valor', 'blur-valor',
   'editar-desconto', 'blur-desconto',
-  'mudar-tipo',
+  'mudar-tipo', 'toggle-orcamento',
 ])
 
 function aoMudarTipo(objId, tipoId) {
   emit('mudar-tipo', objId, tipoId)
+}
+
+function aoToggleOrcamento(objId, value) {
+  emit('toggle-orcamento', objId, value)
 }
 
 function servicosParaObjeto(obj) {

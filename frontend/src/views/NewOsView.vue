@@ -178,28 +178,6 @@
         >
           <div class="flex flex-1 flex-col overflow-y-auto p-4 sm:p-5">
 
-            <!-- Tipo da OS: Entrada / Orçamento -->
-            <div class="mb-5">
-              <p class="mb-1.5 text-sm font-medium text-slate-700">Tipo da O.S.</p>
-              <div class="flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1 sm:inline-flex sm:w-auto">
-                <button
-                  v-for="opt in ESTADOS_INICIAIS" :key="opt.value"
-                  type="button"
-                  :class="[
-                    'flex flex-1 items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition sm:flex-none sm:justify-start',
-                    os.estado === opt.value
-                      ? 'bg-black text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800',
-                  ]"
-                  @click="os.estado = opt.value"
-                >
-                  <span :class="['mdi text-[16px]', opt.icon]"></span>
-                  {{ opt.label }}
-                </button>
-              </div>
-              <p class="mt-1.5 text-xs text-slate-400">{{ os.estado === 'ORCAMENTO' ? 'A O.S. ficará aguardando aprovação do cliente antes de iniciar.' : 'O serviço está autorizado e pode ser iniciado.' }}</p>
-            </div>
-
             <!-- Editor de objetos + serviços -->
             <OsItensEditor
               :objetos="objetos"
@@ -223,6 +201,7 @@
               @editar-desconto="aoEditarDesconto"
               @blur-desconto="aoBlurDesconto"
               @mudar-tipo="mudarTipoObjeto"
+              @toggle-orcamento="toggleOrcamento"
             />
 
             <!-- Separador -->
@@ -440,11 +419,6 @@ import { criarOrdem } from '@/services/ordensServico'
 
 const route = useRoute()
 
-const ESTADOS_INICIAIS = [
-  { value: 'ENTRADA',   label: 'Entrada',   icon: 'mdi-wrench-outline' },
-  { value: 'ORCAMENTO', label: 'Orçamento', icon: 'mdi-file-document-outline' },
-]
-
 const STEPS = [
   { key: 'cliente',   label: 'Cliente'   },
   { key: 'os',        label: 'O.S.'      },
@@ -475,7 +449,7 @@ const {
 const {
   objetos, erros: errosItens, totalGeral, totalObjeto,
   descontoStr, totalFinal,
-  nomeTipoObjeto, mudarTipoObjeto,
+  nomeTipoObjeto, mudarTipoObjeto, toggleOrcamento,
   adicionarObjeto, removerObjeto,
   adicionarServico, removerServico, mudarQuantidade,
   aoSelecionarServico, aoEditarValor, aoBlurValor,
@@ -491,8 +465,12 @@ const salvando   = ref(false)
 const erroSalvar = ref('')
 const osCriada   = ref(null)
 
-const resumo = computed(() => [
-  { label: 'Tipo',          valor: os.estado === 'ORCAMENTO' ? 'Orçamento' : 'Entrada' },
+const resumo = computed(() => {
+  const nOrç = objetos.value.filter(o => o.eh_orcamento).length
+  const total = objetos.value.length
+  const tipoLabel = nOrç === 0 ? 'Entrada' : nOrç === total ? 'Orçamento' : `Misto (${nOrç} em orç.)`
+  return [
+  { label: 'Tipo',          valor: tipoLabel },
   { label: 'Cliente',       valor: cliente.nome },
   { label: 'Telefone',      valor: cliente.telefone || '—' },
   { label: 'Objetos',       valor: objetos.value.length + (objetos.value.length !== 1 ? ' objetos' : ' objeto') },
@@ -500,7 +478,7 @@ const resumo = computed(() => [
   { label: 'Data de entrega',valor: os.dataEntrega ? formatarData(os.dataEntrega) : '—' },
   { label: 'Hora de entrega',valor: os.horaEntrega || '—' },
   { label: 'Fotos',         valor: fotoPreviews.value.length + (fotoPreviews.value.length !== 1 ? ' fotos' : ' foto') },
-])
+]})
 
 // ── ciclo de vida ────────────────────────────────────────────
 onMounted(async () => {
@@ -545,7 +523,7 @@ async function salvarOs() {
       data_entrega: os.dataEntrega,
       hora_entrega: os.horaEntrega || undefined,
       observacoes:  os.observacoes.trim() || undefined,
-      itens:        toItens(os.estado === 'ORCAMENTO'),
+      itens:        toItens(),
     })
     etapa.value = 'impressao'
   } catch (err) {

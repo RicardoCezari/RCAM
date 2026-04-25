@@ -47,6 +47,7 @@ function novoObjeto() {
   return {
     _id:           crypto.randomUUID(),
     tipo_objeto_id: '',
+    eh_orcamento:  false,
     servicos:      [novoServico()],
   }
 }
@@ -194,15 +195,39 @@ export function useItens(tiposObjeto, servicosDisp) {
     return ok
   }
 
+  // ── orçamento por objeto ────────────────────────────────────────────────────
+  function toggleOrcamento(objetoId, value) {
+    const obj = objetos.value.find(o => o._id === objetoId)
+    if (!obj) return
+    obj.eh_orcamento = value
+    if (value) {
+      // Ao marcar como orçamento, limpa os valores — preço será definido depois
+      for (const sv of obj.servicos) {
+        sv.valor     = ''
+        sv._valorStr = ''
+      }
+    } else {
+      // Ao desmarcar, restaura o valor original do cadastro do serviço (se selecionado)
+      for (const sv of obj.servicos) {
+        if (!sv.servico_id) continue
+        const svcDados = servicosDisp.value?.find(s => String(s.id) === String(sv.servico_id))
+        if (svcDados?.valor) {
+          sv.valor     = String(svcDados.valor)
+          sv._valorStr = numeroParaMascara(svcDados.valor)
+        }
+      }
+    }
+  }
+
   // ── serializar para envio ─────────────────────────────────────────────────
-  function toItens(ehOrcamento = false) {
+  function toItens() {
     return objetos.value.flatMap(obj =>
       obj.servicos.map(sv => ({
         tipo_objeto_id: Number(obj.tipo_objeto_id),
         servico_id:     Number(sv.servico_id),
         quantidade:     sv.quantidade,
         valor_unitario: parseMoeda(sv._valorStr) || null,
-        eh_orcamento:   ehOrcamento,
+        eh_orcamento:   obj.eh_orcamento,
       }))
     )
   }
@@ -216,7 +241,7 @@ export function useItens(tiposObjeto, servicosDisp) {
   return {
     objetos, erros, totalGeral, totalObjeto,
     descontoStr, totalFinal,
-    nomeTipoObjeto, mudarTipoObjeto,
+    nomeTipoObjeto, mudarTipoObjeto, toggleOrcamento,
     adicionarObjeto, removerObjeto,
     adicionarServico, removerServico, mudarQuantidade,
     aoSelecionarServico, aoEditarValor, aoBlurValor,

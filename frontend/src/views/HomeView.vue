@@ -67,18 +67,18 @@ const atendimentoCards = [
 
 const cadastrosCards = [
   {
-    to: '/cadastrar-servicos',
-    icon: 'mdi-tools',
-    title: 'Serviços',
-    description: 'Gerencie o catálogo de serviços e associe-os aos tipos de objeto.',
-    contentClass: 'bg-black',
-  },
-  {
     to: '/cadastrar-objetos',
     icon: 'mdi-shape-outline',
     title: 'Tipos de objeto',
     description: 'Gerencie os tipos de peças aceitas (relógio, anel, pulseira, etc.).',
     contentClass: 'bg-[#111111]',
+  },
+  {
+    to: '/cadastrar-servicos',
+    icon: 'mdi-tools',
+    title: 'Serviços',
+    description: 'Gerencie o catálogo de serviços e associe-os aos tipos de objeto.',
+    contentClass: 'bg-black',
   },
 ]
 </script>

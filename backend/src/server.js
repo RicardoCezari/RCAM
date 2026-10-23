@@ -1,11 +1,13 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const app = require('./app');
 const { testConnection } = require('./config/database');
+const { garantirSchema } = require('./config/schema');
 
 const PORT = process.env.PORT || 3000;
 
 async function start() {
   await testConnection();
+  await garantirSchema();
   app.listen(PORT, () => {
     console.log(`[SERVER] Azteca OS API rodando em http://localhost:${PORT}`);
     console.log(`[SERVER] Ambiente: ${process.env.NODE_ENV || 'development'}`);

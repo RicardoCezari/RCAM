@@ -1,5 +1,6 @@
 const AppError = require('../utils/AppError');
 const ordensServicoRepository = require('../repositories/ordensServicoRepository');
+const storage = require('./storageService');
 
 const ESTADOS_VALIDOS = ['ENTRADA', 'ORCAMENTO', 'AUTORIZADO', 'PENDENTE', 'CONCLUIDO', 'CANCELADO'];
 const ESTADOS_INICIAIS = ['ENTRADA', 'ORCAMENTO'];
@@ -47,7 +48,8 @@ async function buscarPorId(id) {
   if (!os) throw AppError.notFound('Ordem de serviço não encontrada');
 
   const itens = await ordensServicoRepository.buscarItens(id);
-  return { ...os, itens };
+  const fotos = await ordensServicoRepository.buscarFotos(id);
+  return { ...os, itens, fotos };
 }
 
 // ──────────────────────────────────────
@@ -111,6 +113,34 @@ async function removerItem(ordemId, itemId) {
   if (!removido) throw AppError.notFound('Item não encontrado nesta ordem');
 }
 
+// ────────────────────────────────────
+// Fotos (da O.S. inteira ou de um item)
+// ────────────────────────────────────
+async function adicionarFotos(ordemId, arquivos = [], itemId = null) {
+  if (!arquivos.length) throw AppError.badRequest('Nenhuma imagem enviada');
+
+  const os = await ordensServicoRepository.buscarPorId(ordemId);
+  if (!os) throw AppError.notFound('Ordem de serviço não encontrada');
+
+  if (itemId) {
+    const item = await ordensServicoRepository.buscarItemPorId(itemId, ordemId);
+    if (!item) throw AppError.notFound('Item não encontrado nesta ordem');
+  }
+
+  const fotos = [];
+  for (const arquivo of arquivos) {
+    const url = await storage.salvar(arquivo.buffer, arquivo.mimetype);
+    fotos.push(await ordensServicoRepository.inserirFoto({ ordem_id: ordemId, item_id: itemId, url }));
+  }
+  return fotos;
+}
+
+async function removerFoto(ordemId, fotoId) {
+  const removida = await ordensServicoRepository.removerFoto(fotoId, ordemId);
+  if (!removida) throw AppError.notFound('Foto não encontrada nesta ordem');
+  await storage.remover(removida.url);
+}
+
 module.exports = {
   listar,
   buscarPorId,
@@ -120,4 +150,6 @@ module.exports = {
   adicionarItem,
   atualizarItem,
   removerItem,
+  adicionarFotos,
+  removerFoto,
 };

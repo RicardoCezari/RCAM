@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mb-8 flex items-start justify-between gap-4">
+    <div class="mb-5 flex items-start justify-between gap-3 sm:mb-8 sm:gap-4">
       <BasePageTitle
         title="Tipos de objeto"
         description="Gerencie os tipos de peças aceitas para serviço (relógios, anéis, pulseiras, etc.)."
@@ -44,21 +44,8 @@
 
       <template #actions="{ row }">
         <div class="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            class="inline-flex h-9 items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-medium text-black transition hover:bg-black hover:text-white"
-            @click="abrirModalEditar(row)"
-          >
-            Editar
-          </button>
-          <button
-            type="button"
-            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white text-black/50 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-            title="Excluir"
-            @click="confirmarDeletar(row)"
-          >
-            <span class="mdi mdi-trash-can-outline text-[16px]"></span>
-          </button>
+          <BaseIconButton icon="mdi-pencil" title="Editar tipo de objeto" @click="abrirModalEditar(row)" />
+          <BaseIconButton icon="mdi-trash-can-outline" title="Excluir tipo de objeto" variant="danger" @click="confirmarDeletar(row)" />
         </div>
       </template>
     </BaseDataTable>
@@ -115,46 +102,21 @@
     </BaseModal>
 
     <!-- Modal confirmação de exclusão -->
-    <BaseModal
+    <BaseConfirmModal
       v-model="modalDeletarAberto"
       title="Excluir tipo de objeto"
-      subtitle="Esta ação não pode ser desfeita"
-      icon="mdi-trash-can-outline"
+      hint="Tipos vinculados a ordens de serviço não poderão ser excluídos."
+      :error="erroGeral"
+      :loading="salvando"
+      @confirm="executarDeletar"
     >
-      <div class="px-6 py-5">
-        <p class="text-sm text-black/70">
-          Deseja excluir o tipo
-          <strong class="text-black">{{ tipoParaDeletar?.nome }}</strong>?
-        </p>
-        <p class="mt-1 text-xs text-black/45">
-          Tipos vinculados a ordens de serviço não poderão ser excluídos.
-        </p>
-        <BaseAlert v-if="erroGeral" type="error" :message="erroGeral" class="mt-3" />
-      </div>
-
-      <template #footer>
-        <button
-          type="button"
-          class="rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-black transition hover:bg-black/5"
-          @click="modalDeletarAberto = false"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          :disabled="salvando"
-          class="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-          @click="executarDeletar"
-        >
-          <span v-if="salvando" class="mdi mdi-loading animate-spin text-[16px]"></span>
-          Excluir
-        </button>
-      </template>
-    </BaseModal>
+      Deseja excluir o tipo <strong class="text-black">{{ tipoParaDeletar?.nome }}</strong>?
+    </BaseConfirmModal>
   </AppLayout>
 </template>
 
 <script setup>
+import { useToastStore } from '@/stores/toast'
 import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -163,6 +125,8 @@ import BaseDataTable from '@/components/base/BaseDataTable.vue'
 import BaseModal from '@/components/base/BaseModal.vue'
 import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
+import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import BaseConfirmModal from '@/components/base/BaseConfirmModal.vue'
 
 // ─── API helpers ────────────────────────────────────────────────────────────
 const listar   = ()          => api.get('/tipos-objeto').then(r => r.data)
@@ -229,6 +193,8 @@ function abrirModalEditar(tipo) {
   modalAberto.value = true
 }
 
+const toast = useToastStore()
+
 async function salvar() {
   errosForm.value = { nome: '' }
   if (!form.value.nome.trim()) {
@@ -244,6 +210,7 @@ async function salvar() {
     } else {
       await criar(payload)
     }
+    toast.sucesso(modoEdicao.value ? 'Tipo de objeto atualizado.' : 'Tipo de objeto cadastrado.')
     modalAberto.value = false
     await carregar()
   } catch (err) {
@@ -266,6 +233,7 @@ async function executarDeletar() {
   erroGeral.value = ''
   try {
     await deletar(tipoParaDeletar.value.id)
+    toast.sucesso('Tipo de objeto excluído.')
     modalDeletarAberto.value = false
     await carregar()
   } catch (err) {

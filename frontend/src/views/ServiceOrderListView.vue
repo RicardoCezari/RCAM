@@ -1,321 +1,184 @@
 <template>
   <AppLayout>
-    <BasePageTitle
-      class="mb-8"
-      title="Ordens de Serviço"
-      description="Visualize e gerencie as ordens de serviço cadastradas."
-    />
+    <div class="mb-5 flex items-start justify-between gap-3 sm:mb-8 sm:gap-4">
+      <BasePageTitle
+        title="Lista de O.S."
+        description="Acompanhe o andamento das ordens de serviço e abra qualquer uma para editar."
+      />
+      <button
+        type="button"
+        class="flex shrink-0 items-center gap-2 rounded-2xl bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-black/80 sm:px-5 sm:py-3"
+        @click="router.push('/nova-os')"
+      >
+        <span class="mdi mdi-plus text-[18px]"></span>
+        Nova O.S.
+      </button>
+    </div>
+
+    <div class="mb-3 flex flex-col gap-2 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+      <div class="relative">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-black/40">
+          <span class="mdi mdi-magnify text-[16px]"></span>
+        </span>
+        <input
+          v-model="filtro"
+          type="text"
+          placeholder="Buscar por nº, cliente ou objeto..."
+          class="h-10 w-full rounded-xl border border-black/10 bg-white pl-8 pr-4 text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10 sm:w-72"
+        />
+      </div>
+
+      <div class="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+        <button
+          v-for="opcao in opcoesEstado"
+          :key="opcao.key"
+          type="button"
+          :title="opcao.label"
+          :class="[
+            'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-sm font-medium transition sm:h-10',
+            filtroEstado === opcao.key
+              ? 'border-black bg-black text-white'
+              : 'border-black/10 bg-white text-black hover:bg-black/5',
+          ]"
+          @click="filtroEstado = opcao.key"
+        >
+          <span v-if="opcao.icon" :class="['mdi text-[16px]', opcao.icon]"></span>
+          {{ opcao.label }}
+          <span class="text-xs opacity-60">{{ opcao.total }}</span>
+        </button>
+      </div>
+    </div>
+
+    <BaseAlert :message="erro" class="mb-4" />
 
     <BaseDataTable
       :columns="columns"
-      :rows="ordens"
+      :rows="ordensFiltradas"
       :loading="carregando"
-      row-key="id"
+      compact
+      clickable
       empty-text="Nenhuma ordem de serviço encontrada."
-      actions-label="Ações"
-      actions-header-class="w-[120px]"
-      actions-cell-class="w-[120px]"
+      actions-header-class="hidden sm:table-cell"
+      actions-cell-class="hidden sm:table-cell"
+      @row-click="abrir"
     >
-      <template #status="{ value }">
-        <span
-          class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
-          :class="statusClass(value)"
-        >
-          {{ value || '—' }}
+      <template #numero="{ row }">
+        <span class="inline-flex items-center gap-2 whitespace-nowrap">
+          <span class="font-semibold text-black">{{ row.numero }}</span>
+          <BaseStatusBadge :estado="row.estado" :parcial="ordemParcial(row)" icon-only />
         </span>
       </template>
+
+      <template #cliente_nome="{ row }">
+        <span class="block max-w-[150px] truncate font-medium text-black sm:max-w-[260px]" :title="row.cliente_nome">
+          {{ row.cliente_nome }}
+        </span>
+      </template>
+
+      <template #cliente_telefone="{ row }">
+        <span class="whitespace-nowrap">{{ formatarTelefone(row.cliente_telefone) || '—' }}</span>
+      </template>
+
+      <template #objetos="{ value }">
+        <span class="block max-w-[200px] truncate" :title="value || ''">{{ value || '—' }}</span>
+      </template>
+
+      <template #data_entrega="{ row }">
+        <span class="whitespace-nowrap">
+          <span class="sm:hidden">{{ formatarDataBR(row.data_entrega).slice(0, 5) || '—' }}</span>
+          <span class="hidden sm:inline">{{ formatarDataBR(row.data_entrega) || '—' }}</span>
+          <span v-if="row.hora_entrega" class="hidden text-xs text-black/50 sm:inline">{{ horaCurta(row.hora_entrega) }}</span>
+        </span>
+      </template>
+
+      <template #valor_total="{ row }">
+        <span class="font-medium text-black">{{ valorExibido(row) }}</span>
+      </template>
+
       <template #actions="{ row }">
-        <button
-          type="button"
-          class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-white text-black transition hover:-translate-y-[1px] hover:bg-black hover:text-white"
-          title="Editar O.S."
-          aria-label="Editar O.S."
-          @click="editarOrdem(row)"
-        >
-          <i class="mdi mdi-pencil-outline text-lg"></i>
-        </button>
+        <div class="flex items-center justify-end">
+          <BaseIconButton icon="mdi-pencil" title="Abrir O.S." @click="abrir(row)" />
+        </div>
       </template>
     </BaseDataTable>
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
 import BasePageTitle from '@/components/base/BasePageTitle.vue'
 import BaseDataTable from '@/components/base/BaseDataTable.vue'
+import BaseAlert from '@/components/base/BaseAlert.vue'
+import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import BaseStatusBadge from '@/components/base/BaseStatusBadge.vue'
+import { formatarTelefone } from '@/composables/useClienteForm'
+import { formatarMoeda } from '@/composables/useItens'
+import { ESTADOS_OS, formatarDataBR, horaCurta, ordemParcial } from '@/utils/ordem'
 import { listarOrdens } from '@/services/ordensServico'
 
-const STATUS_CLASSES = {
-  'Concluído':   'bg-emerald-100 text-emerald-700',
-  'Pendente':    'bg-amber-100 text-amber-700',
-  'Atrasado':    'bg-red-100 text-red-700',
-}
+const router = useRouter()
 
 const columns = [
-  { key: 'cliente',      label: 'Cliente',           headerClass: 'min-w-[220px]', cellClass: 'text-black/80' },
-  { key: 'telefone',     label: 'Telefone',           headerClass: 'min-w-[180px]', cellClass: 'whitespace-nowrap text-black/75' },
-  { key: 'objeto',       label: 'Objeto',             headerClass: 'min-w-[180px]', cellClass: 'text-black/75' },
-  { key: 'status',       label: 'Status',             headerClass: 'min-w-[140px]', slot: 'status' },
-  { key: 'data_entrega', label: 'Data de entrega',    headerClass: 'min-w-[150px]', cellClass: 'whitespace-nowrap text-black/75' },
-  { key: 'valor',        label: 'Valor',              headerClass: 'min-w-[140px]', cellClass: 'whitespace-nowrap text-black/75' },
+  { key: 'numero', label: 'O.S.', slot: 'numero' },
+  { key: 'cliente_nome', label: 'Cliente', slot: 'cliente_nome' },
+  { key: 'cliente_telefone', label: 'Telefone', slot: 'cliente_telefone' },
+  { key: 'objetos', label: 'Objetos', slot: 'objetos', hideBelow: 'md' },
+  { key: 'data_entrega', label: 'Entrega', slot: 'data_entrega' },
+  { key: 'valor_total', label: 'Valor', slot: 'valor_total', hideBelow: 'sm' },
 ]
 
-const ordens     = ref([])
+const ordens = ref([])
 const carregando = ref(false)
+const erro = ref('')
+const filtro = ref('')
+const filtroEstado = ref('')
+
+const opcoesEstado = computed(() => [
+  { key: '', label: 'Todas', icon: '', total: ordens.value.length },
+  ...Object.entries(ESTADOS_OS).map(([key, info]) => ({
+    key,
+    label: info.label,
+    icon: info.icon,
+    total: ordens.value.filter((o) => o.estado === key).length,
+  })),
+])
+
+const ordensFiltradas = computed(() => {
+  const termo = filtro.value.trim().toLowerCase()
+
+  return ordens.value.filter((o) => {
+    if (filtroEstado.value && o.estado !== filtroEstado.value) return false
+    if (!termo) return true
+    return (
+      String(o.numero).includes(termo.replace('#', '')) ||
+      o.cliente_nome?.toLowerCase().includes(termo) ||
+      (termo.replace(/\D/g, '') && o.cliente_telefone?.includes(termo.replace(/\D/g, ''))) ||
+      o.objetos?.toLowerCase().includes(termo)
+    )
+  })
+})
+
+function valorExibido(ordem) {
+  const total = Number(ordem.valor_total)
+  if (total > 0) return formatarMoeda(total)
+  return Number(ordem.valor_orcamento) > 0 ? `${formatarMoeda(ordem.valor_orcamento)} (orç.)` : '—'
+}
+
+function abrir(ordem) {
+  router.push(`/listar-os/${ordem.id}`)
+}
 
 onMounted(async () => {
   carregando.value = true
   try {
-    const res = await listarOrdens({ limit: 100 })
+    const res = await listarOrdens({ limit: 1000 })
     ordens.value = res.data ?? res
+  } catch (err) {
+    erro.value = err?.response?.data?.message || 'Não foi possível carregar as ordens de serviço.'
   } finally {
     carregando.value = false
   }
 })
-
-function statusClass(status) {
-  return STATUS_CLASSES[status] ?? 'bg-black/5 text-black/60'
-}
-
-function editarOrdem(ordem) {
-  // TODO: abrir modal de edição
-  console.warn('Editar O.S.:', ordem.id)
-}
-</script>
-          <span
-            class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
-            :class="getStatusClass(value)"
-          >
-            {{ value || "—" }}
-          </span>
-        </template>
-
-        <template #actions="{ row }">
-          <button
-            type="button"
-            class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-white text-black transition hover:-translate-y-[1px] hover:bg-black hover:text-white"
-            title="Editar O.S."
-            aria-label="Editar O.S."
-            @click="handleEdit(row)"
-          >
-            <i class="mdi mdi-pencil-outline text-lg"></i>
-          </button>
-        </template>
-      </BaseDataTable>
-    </div>
-  </section>
-  </AppLayout>
-</template>
-
-<script setup>
-import { ref } from "vue";
-import AppLayout from "@/layouts/AppLayout.vue";
-import BasePageTitle from "@/components/base/BasePageTitle.vue";
-import BaseDataTable from "@/components/base/BaseDataTable.vue";
-
-const columns = [
-  {
-    key: "cliente",
-    label: "Cliente",
-    headerClass: "min-w-[220px]",
-    cellClass: "text-black/80",
-  },
-  {
-    key: "telefone",
-    label: "Telefone do cliente",
-    headerClass: "min-w-[180px]",
-    cellClass: "whitespace-nowrap text-black/75",
-  },
-  {
-    key: "objeto",
-    label: "Objeto",
-    headerClass: "min-w-[180px]",
-    cellClass: "text-black/75",
-  },
-  {
-    key: "status",
-    label: "Status",
-    headerClass: "min-w-[140px]",
-    slot: "status",
-  },
-  {
-    key: "dataEntrega",
-    label: "Data de entrega",
-    headerClass: "min-w-[150px]",
-    cellClass: "whitespace-nowrap text-black/75",
-  },
-  {
-    key: "valor",
-    label: "Valor",
-    headerClass: "min-w-[140px]",
-    cellClass: "whitespace-nowrap text-black/75",
-  },
-];
-
-const serviceOrders = ref([
-  {
-    id: 1,
-    cliente: "Gabriel Albuquerque",
-    telefone: "(11) 99876-4321",
-    objeto: "Smartwatch Samsung Galaxy Watch",
-    status: "Concluído",
-    quantidade: 1,
-    servico: "Manutenção",
-    dataEntrega: "15/04/2026",
-    valor: "R$ 450,00",
-    informacaoAdicional: "Troca de teclado e limpeza interna completa.",
-  },
-  {
-    id: 2,
-    cliente: "Maria Oliveira",
-    telefone: "(11) 98765-1234",
-    objeto: "Relógio Casio Vintage",
-    status: "Pendente",
-    quantidade: 2,
-    servico: "Reparo",
-    dataEntrega: "18/04/2026",
-    valor: "R$ 780,00",
-    informacaoAdicional: "Verificar falha na alimentação de papel.",
-  },
-  {
-    id: 3,
-    cliente: "João Silva",
-    telefone: "(11) 97654-9876",
-    objeto: "Smartwatch Apple Watch",
-    status: "Atrasado",
-    quantidade: 1,
-    servico: "Instalação",
-    dataEntrega: "20/04/2026",
-    valor: "R$ 1.250,00",
-    informacaoAdicional: "Instalação no ambiente principal do escritório.",
-  },
-  {
-    id: 4,
-    cliente: "Ana Souza",
-    telefone: "(11) 96543-1111",
-    objeto: 'Relógio Casio G-Shock',
-    status: "Pendente",
-    quantidade: 4,
-    servico: "Instalação",
-    dataEntrega: "22/04/2026",
-    valor: "R$ 2.300,00",
-    informacaoAdicional: "Passagem de cabeamento e configuração inicial.",
-  },
-  {
-    id: 5,
-    cliente: "Carlos Mendes",
-    telefone: "(11) 95432-2222",
-    objeto: "Smartwatch Xiaomi Watch",
-    status: "Concluído",
-    quantidade: 1,
-    servico: "Manutenção",
-    dataEntrega: "25/04/2026",
-    valor: "R$ 980,00",
-    informacaoAdicional: "Atualização de componentes e revisão geral.",
-  },
-  {
-    id: 6,
-    cliente: "Fernanda Lima",
-    telefone: "(11) 94321-3333",
-    objeto: "Relógio Orient Masculino",
-    status: "Atrasado",
-    quantidade: 3,
-    servico: "Reparo",
-    dataEntrega: "28/04/2026",
-    valor: "R$ 620,00",
-    informacaoAdicional: "Dois com problema de imagem e um sem ligar.",
-  },
-  {
-    id: 7,
-    cliente: "Ricardo Alves",
-    telefone: "(11) 93210-4444",
-    objeto: "Smartwatch Amazfit Bip",
-    status: "Pendente",
-    quantidade: 1,
-    servico: "Configuração",
-    dataEntrega: "30/04/2026",
-    valor: "R$ 350,00",
-    informacaoAdicional: "Criar regras de firewall e ajuste de rede interna.",
-  },
-  {
-    id: 8,
-    cliente: "Juliana Rocha",
-    telefone: "(11) 92109-5555",
-    objeto: "Relógio Technos Prata",
-    status: "Concluído",
-    quantidade: 1,
-    servico: "Reparo",
-    dataEntrega: "02/05/2026",
-    valor: "R$ 540,00",
-    informacaoAdicional: "Tela apagando após alguns minutos de uso.",
-  },
-  {
-    id: 9,
-    cliente: "Paulo Henrique",
-    telefone: "(11) 91098-6666",
-    objeto: "Smartwatch Huawei Watch Fit",
-    status: "Atrasado",
-    quantidade: 1,
-    servico: "Manutenção",
-    dataEntrega: "04/05/2026",
-    valor: "R$ 690,00",
-    informacaoAdicional: "Revisão do motor e troca de sensor.",
-  },
-  {
-    id: 10,
-    cliente: "Beatriz Santos",
-    telefone: "(11) 99999-7777",
-    objeto: "Relógio Casio Dourado",
-    status: "Pendente",
-    quantidade: 1,
-    servico: "Upgrade",
-    dataEntrega: "06/05/2026",
-    valor: "R$ 1.800,00",
-    informacaoAdicional: "Instalação de SSD e aumento de memória RAM.",
-  },
-  {
-    id: 11,
-    cliente: "Lucas Ferreira",
-    telefone: "(11) 98888-8888",
-    objeto: "Smartwatch Garmin Forerunner",
-    status: "Concluído",
-    quantidade: 1,
-    servico: "Instalação",
-    dataEntrega: "08/05/2026",
-    valor: "R$ 1.150,00",
-    informacaoAdicional: "Instalação completa em muro lateral.",
-  },
-  {
-    id: 12,
-    cliente: "Patrícia Gomes",
-    telefone: "(11) 97777-9999",
-    objeto: "Relógio Mondaine Feminino",
-    status: "Pendente",
-    quantidade: 1,
-    servico: "Reparo",
-    dataEntrega: "10/05/2026",
-    valor: "R$ 430,00",
-    informacaoAdicional: "Equipamento não está centrifugando.",
-  },
-]);
-function getStatusClass(status) {
-  if (status === "Concluído") {
-    return "bg-emerald-100 text-emerald-700";
-  }
-
-  if (status === "Pendente") {
-    return "bg-amber-100 text-amber-700";
-  }
-
-  if (status === "Atrasado") {
-    return "bg-red-100 text-red-700";
-  }
-
-  return "bg-black/5 text-black/60";
-}
-
-function handleEdit(row) {
-  console.log("Editar O.S.:", row);
-}
 </script>

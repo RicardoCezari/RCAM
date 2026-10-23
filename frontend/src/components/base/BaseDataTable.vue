@@ -9,8 +9,10 @@
             <th
               v-for="column in columns"
               :key="column.key"
-              class="border-b border-black/10 px-6 py-4 text-left text-sm font-semibold text-black"
+              class="border-b border-black/10 text-left text-sm font-semibold text-black"
               :class="[
+                cellPadding,
+                hideClass(column),
                 column.headerClass,
                 column.nowrap !== false ? 'whitespace-nowrap' : '',
               ]"
@@ -20,8 +22,8 @@
 
             <th
               v-if="$slots.actions"
-              class="whitespace-nowrap border-b border-black/10 px-6 py-4 text-right text-sm font-semibold text-black"
-              :class="actionsHeaderClass"
+              class="whitespace-nowrap border-b border-black/10 text-right text-sm font-semibold text-black"
+              :class="[cellPadding, actionsHeaderClass]"
             >
               {{ actionsLabel }}
             </th>
@@ -33,12 +35,14 @@
             v-for="row in paginatedRows"
             :key="getRowKey(row)"
             class="transition hover:bg-black/[0.02]"
+            :class="clickable ? 'cursor-pointer' : ''"
+            @click="clickable && emit('row-click', row)"
           >
             <td
               v-for="column in columns"
               :key="column.key"
-              class="border-b border-black/5 px-6 py-4 text-sm"
-              :class="[column.cellClass || 'text-black/75']"
+              class="border-b border-black/5 text-sm"
+              :class="[cellPadding, hideClass(column), column.cellClass || 'text-black/75']"
             >
               <slot
                 v-if="column.slot"
@@ -55,8 +59,9 @@
 
             <td
               v-if="$slots.actions"
-              class="border-b border-black/5 px-6 py-4 text-right"
-              :class="actionsCellClass"
+              class="border-b border-black/5 text-right"
+              :class="[cellPadding, actionsCellClass]"
+              @click.stop
             >
               <slot name="actions" :row="row" />
             </td>
@@ -67,7 +72,8 @@
               :colspan="columns.length + ($slots.actions ? 1 : 0)"
               class="px-6 py-10 text-center text-sm text-black/50"
             >
-              {{ emptyText }}
+              <span v-if="loading" class="mdi mdi-loading animate-spin text-[18px] align-middle"></span>
+              {{ loading ? 'Carregando...' : emptyText }}
             </td>
           </tr>
         </tbody>
@@ -75,7 +81,7 @@
     </div>
 
     <div
-      class="flex flex-col gap-4 border-t border-black/5 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+      class="flex flex-col gap-3 border-t border-black/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-4"
     >
       <div class="flex items-center gap-2 text-sm text-black/60">
         <span>{{ perPageLabel }}</span>
@@ -185,7 +191,35 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
+  compact: {
+    type: Boolean,
+    default: false,
+  },
+  clickable: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const emit = defineEmits(["row-click"]);
+
+const cellPadding = computed(() =>
+  props.compact ? "px-3 py-2.5 sm:px-4" : "px-3 py-3 sm:px-6 sm:py-4",
+);
+
+const HIDE_BELOW = {
+  sm: "hidden sm:table-cell",
+  md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
+};
+
+function hideClass(column) {
+  return HIDE_BELOW[column.hideBelow] ?? "";
+}
 
 const itemsPerPage = ref(props.initialItemsPerPage);
 const currentPage = ref(1);

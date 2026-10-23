@@ -13,4 +13,9 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    // Expõe na rede local para testar pelo celular
+    host: true,
+    port: 5173,
+  },
 });

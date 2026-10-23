@@ -11,6 +11,14 @@ async function listar({ conditions, params, limit, offset }) {
       os.id, os.numero, os.estado,
       os.data_criacao, os.data_entrega, os.hora_entrega,
       os.valor_total, os.valor_orcamento, os.observacoes,
+      (SELECT STRING_AGG(DISTINCT t.nome, ', ')
+         FROM itens_ordem_servico i
+         JOIN tipos_objeto t ON t.id = i.tipo_objeto_id
+        WHERE i.ordem_id = os.id) AS objetos,
+      (SELECT COUNT(*)::int FROM itens_ordem_servico i
+        WHERE i.ordem_id = os.id AND i.estado IS DISTINCT FROM 'CANCELADO') AS itens_ativos,
+      (SELECT COUNT(*)::int FROM itens_ordem_servico i
+        WHERE i.ordem_id = os.id AND i.estado = 'CONCLUIDO') AS itens_concluidos,
       c.id   AS cliente_id,
       c.nome AS cliente_nome,
       c.telefone AS cliente_telefone,
@@ -174,10 +182,37 @@ async function removerItem(itemId, ordemId) {
   return rows[0] || null;
 }
 
+async function buscarFotos(ordemId) {
+  const { rows } = await pool.query(
+    'SELECT id, ordem_id, item_id, url, data_criacao FROM ordem_fotos WHERE ordem_id = $1 ORDER BY id',
+    [ordemId]
+  );
+  return rows;
+}
+
+async function inserirFoto({ ordem_id, item_id, url }) {
+  const { rows } = await pool.query(
+    'INSERT INTO ordem_fotos (ordem_id, item_id, url) VALUES ($1, $2, $3) RETURNING id, ordem_id, item_id, url, data_criacao',
+    [ordem_id, item_id || null, url]
+  );
+  return rows[0];
+}
+
+async function removerFoto(fotoId, ordemId) {
+  const { rows } = await pool.query(
+    'DELETE FROM ordem_fotos WHERE id = $1 AND ordem_id = $2 RETURNING url',
+    [fotoId, ordemId]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   listar,
   buscarPorId,
   buscarItens,
+  buscarFotos,
+  inserirFoto,
+  removerFoto,
   criar,
   atualizar,
   atualizarEstado,

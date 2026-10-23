@@ -54,6 +54,7 @@ const options = {
               type: 'object',
               properties: {
                 ativo: { type: 'boolean', example: true },
+                perfil: { type: 'string', enum: ['ADMIN', 'EDITOR'] },
                 data_criacao: { type: 'string', format: 'date-time' },
               },
             },
@@ -67,6 +68,7 @@ const options = {
             login: { type: 'string', example: 'funcionario' },
             senha: { type: 'string', format: 'password', example: 'senha123' },
             ativo: { type: 'boolean', default: true },
+            perfil: { type: 'string', enum: ['ADMIN', 'EDITOR'], default: 'EDITOR' },
           },
         },
         // ── Clientes ──────────────────────────────────────────

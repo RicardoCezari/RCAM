@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mb-8 flex items-start justify-between gap-4">
+    <div class="mb-5 flex items-start justify-between gap-3 sm:mb-8 sm:gap-4">
       <BasePageTitle
         title="Catálogo de serviços"
         description="Gerencie os serviços e associe-os aos tipos de objeto."
@@ -92,21 +92,8 @@
 
       <template #actions="{ row }">
         <div class="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            class="inline-flex h-9 items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-medium text-black transition hover:bg-black hover:text-white"
-            @click="abrirModalEditar(row)"
-          >
-            Editar
-          </button>
-          <button
-            type="button"
-            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white text-black/50 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-            title="Excluir"
-            @click="confirmarDeletar(row)"
-          >
-            <span class="mdi mdi-trash-can-outline text-[16px]"></span>
-          </button>
+          <BaseIconButton icon="mdi-pencil" title="Editar serviço" @click="abrirModalEditar(row)" />
+          <BaseIconButton icon="mdi-trash-can-outline" title="Excluir serviço" variant="danger" @click="confirmarDeletar(row)" />
         </div>
       </template>
     </BaseDataTable>
@@ -229,46 +216,21 @@
     </BaseModal>
 
     <!-- Modal confirmação de exclusão -->
-    <BaseModal
+    <BaseConfirmModal
       v-model="modalDeletarAberto"
       title="Excluir serviço"
-      subtitle="Esta ação não pode ser desfeita"
-      icon="mdi-trash-can-outline"
+      hint="Se houver ordens de serviço vinculadas, o serviço será apenas desativado."
+      :error="erroGeral"
+      :loading="salvando"
+      @confirm="executarDeletar"
     >
-      <div class="px-6 py-5">
-        <p class="text-sm text-black/70">
-          Deseja excluir o serviço
-          <strong class="text-black">{{ servicoParaDeletar?.nome }}</strong>?
-        </p>
-        <p class="mt-1 text-xs text-black/45">
-          Se houver ordens de serviço vinculadas, o serviço será apenas desativado.
-        </p>
-        <BaseAlert v-if="erroGeral" type="error" :message="erroGeral" class="mt-3" />
-      </div>
-
-      <template #footer>
-        <button
-          type="button"
-          class="rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-black transition hover:bg-black/5"
-          @click="modalDeletarAberto = false"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          :disabled="salvando"
-          class="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-          @click="executarDeletar"
-        >
-          <span v-if="salvando" class="mdi mdi-loading animate-spin text-[16px]"></span>
-          Excluir
-        </button>
-      </template>
-    </BaseModal>
+      Deseja excluir o serviço <strong class="text-black">{{ servicoParaDeletar?.nome }}</strong>?
+    </BaseConfirmModal>
   </AppLayout>
 </template>
 
 <script setup>
+import { useToastStore } from '@/stores/toast'
 import { ref, computed, onMounted } from 'vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import BasePageTitle from '@/components/base/BasePageTitle.vue'
@@ -276,6 +238,8 @@ import BaseDataTable from '@/components/base/BaseDataTable.vue'
 import BaseModal from '@/components/base/BaseModal.vue'
 import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
+import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import BaseConfirmModal from '@/components/base/BaseConfirmModal.vue'
 import {
   listarServicos,
   criarServico,
@@ -433,6 +397,8 @@ function _validarForm() {
   return valido
 }
 
+const toast = useToastStore()
+
 async function salvar() {
   if (!_validarForm()) return
   salvando.value = true
@@ -451,6 +417,7 @@ async function salvar() {
     } else {
       await criarServico(payload)
     }
+    toast.sucesso(modoEdicao.value ? 'Serviço atualizado.' : 'Serviço cadastrado.')
     modalAberto.value = false
     await carregar()
   } catch (err) {
@@ -473,6 +440,7 @@ async function executarDeletar() {
   erroGeral.value = ''
   try {
     await deletarServico(servicoParaDeletar.value.id)
+    toast.sucesso('Serviço excluído.')
     modalDeletarAberto.value = false
     await carregar()
   } catch (err) {

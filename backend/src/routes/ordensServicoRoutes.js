@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { body } = require('express-validator');
 const ctrl = require('../controllers/ordensServicoController');
 const validate = require('../middlewares/validate');
+const { uploadFotos } = require('../middlewares/upload');
 
 const router = Router();
 
@@ -365,5 +366,14 @@ router.post(
 
 router.put('/:id/itens/:itemId', ctrl.atualizarItem);
 router.delete('/:id/itens/:itemId', ctrl.removerItem);
+
+// ─── Fotos da OS ─────────────────────────────────────────────
+// multipart/form-data: campo "fotos" (até 10 imagens) e "item_id" opcional
+router.post(
+  '/:id/fotos',
+  [uploadFotos, body('item_id').optional({ values: 'falsy' }).isInt({ min: 1 }).withMessage('item_id inválido'), validate],
+  ctrl.adicionarFotos
+);
+router.delete('/:id/fotos/:fotoId', ctrl.removerFoto);
 
 module.exports = router;

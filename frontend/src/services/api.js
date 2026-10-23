@@ -1,8 +1,9 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-  timeout: 10000,
+  // Sem VITE_API_URL, usa o mesmo host da tela (funciona no PC e no celular da mesma rede)
+  baseURL: import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000/api`,
+  timeout: 15000,
 })
 
 // Injeta o token em todas as requisições autenticadas
@@ -18,7 +19,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // 401 no login = credenciais inválidas: mantém a tela e mostra a mensagem
+    const ehLogin = error.config?.url?.includes('/auth/login')
+    if (error.response?.status === 401 && !ehLogin) {
       localStorage.removeItem('token')
       localStorage.removeItem('usuario')
       window.location.href = '/login'

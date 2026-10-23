@@ -8,7 +8,7 @@ import {
 const INPUT_BASE =
   'w-full rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2'
 
-function formatarTelefone(raw) {
+export function formatarTelefone(raw) {
   const d = (raw || '').replace(/\D/g, '').slice(0, 11)
   // 11 dígitos → celular:  (XX) XXXXX-XXXX
   if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
@@ -24,7 +24,7 @@ function formatarTelefone(raw) {
 // DDD brasileiro válido: 11-99 (sem 0X)
 // Celular: 11 dígitos, 3º dígito = 9
 // Fixo:    10 dígitos, 3º dígito ≠ 9
-function _telefoneValido(digits) {
+export function _telefoneValido(digits) {
   if (digits.length !== 10 && digits.length !== 11) return { ok: false, msg: 'Telefone incompleto.' }
   const ddd = parseInt(digits.slice(0, 2), 10)
   if (ddd < 11 || ddd > 99) return { ok: false, msg: 'DDD inválido.' }

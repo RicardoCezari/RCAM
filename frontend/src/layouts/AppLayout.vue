@@ -11,7 +11,7 @@
     <transition name="fade">
       <div
         v-if="isMobileMenuOpen"
-        class="fixed inset-0 z-30 bg-black/20 md:hidden"
+        class="fixed inset-0 z-30 bg-black/20 lg:hidden"
         @click="isMobileMenuOpen = false"
       ></div>
     </transition>
@@ -19,7 +19,7 @@
     <!-- overlay user menu -->
     <div
       v-if="isUserMenuOpen"
-      class="fixed inset-0 z-30 hidden md:block"
+      class="fixed inset-0 z-30 hidden lg:block"
       @click="isUserMenuOpen = false"
     ></div>
 
@@ -28,16 +28,28 @@
       ref="headerRef"
       class="sticky top-0 z-40 border-b border-black/10 bg-black/95 text-white backdrop-blur"
     >
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
         <!-- brand -->
         <RouterLink to="/" class="flex items-center gap-3">
-          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
-            <span class="text-sm font-semibold tracking-wide text-white">Az</span>
+          <div class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/10 sm:h-11 sm:w-11">
+            <img
+              v-if="configStore.logoSrc"
+              :src="configStore.logoSrc"
+              :alt="configStore.empresaNome || 'Logo'"
+              class="h-full w-full object-contain"
+            />
+            <span v-else class="text-sm font-semibold tracking-wide text-white">Az</span>
           </div>
+          <span
+            v-if="configStore.empresaNome"
+            class="hidden max-w-[12rem] truncate text-sm font-semibold text-white sm:block"
+          >
+            {{ configStore.empresaNome }}
+          </span>
         </RouterLink>
 
         <!-- desktop nav -->
-        <nav class="hidden items-center gap-1 md:flex">
+        <nav class="hidden items-center gap-1 lg:flex">
           <RouterLink
             to="/nova-os"
             class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
@@ -60,6 +72,7 @@
             Listar O.S.
           </RouterLink>
           <RouterLink
+            v-if="authStore.isAdmin"
             to="/cadastrar-servicos"
             class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
             active-class="bg-white/10 !text-white"
@@ -67,18 +80,27 @@
             Serviços
           </RouterLink>
           <RouterLink
+            v-if="authStore.isAdmin"
             to="/cadastrar-objetos"
             class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
             active-class="bg-white/10 !text-white"
           >
             Tipos de objeto
           </RouterLink>
+          <RouterLink
+            v-if="authStore.isAdmin"
+            to="/administracao"
+            class="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            active-class="bg-white/10 !text-white"
+          >
+            Administração
+          </RouterLink>
         </nav>
 
         <!-- right actions -->
         <div class="flex items-center gap-2">
           <!-- desktop user menu -->
-          <div class="relative hidden md:block">
+          <div class="relative hidden lg:block">
             <button
               type="button"
               class="group flex items-center gap-3 rounded-2xl px-3 py-2"
@@ -119,7 +141,7 @@
           <!-- mobile button -->
           <button
             type="button"
-            class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition hover:bg-white/15 md:hidden"
+            class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition hover:bg-white/15 sm:h-11 sm:w-11 lg:hidden"
             @click="toggleMobileMenu"
           >
             <span
@@ -136,7 +158,7 @@
       <transition name="mobile-menu">
         <div
           v-if="isMobileMenuOpen"
-          class="absolute left-0 top-full z-40 w-full border-t border-white/10 bg-black/95 md:hidden"
+          class="absolute left-0 top-full z-40 max-h-[calc(100dvh-4rem)] w-full overflow-y-auto border-t border-white/10 bg-black/95 lg:hidden"
         >
           <div class="px-4 py-3">
             <nav class="flex flex-col">
@@ -165,23 +187,33 @@
                 <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
               </RouterLink>
 
-              <p class="pb-1 pt-5 text-[11px] font-semibold uppercase tracking-widest text-white/35">Cadastros</p>
-              <RouterLink
-                to="/cadastrar-servicos"
-                class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
-                @click="isMobileMenuOpen = false"
-              >
-                <span>Serviços</span>
-                <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
-              </RouterLink>
-              <RouterLink
-                to="/cadastrar-objetos"
-                class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
-                @click="isMobileMenuOpen = false"
-              >
-                <span>Tipos de objeto</span>
-                <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
-              </RouterLink>
+              <template v-if="authStore.isAdmin">
+                <p class="pb-1 pt-5 text-[11px] font-semibold uppercase tracking-widest text-white/35">Administrador</p>
+                <RouterLink
+                  to="/cadastrar-servicos"
+                  class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
+                  @click="isMobileMenuOpen = false"
+                >
+                  <span>Serviços</span>
+                  <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
+                </RouterLink>
+                <RouterLink
+                  to="/cadastrar-objetos"
+                  class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
+                  @click="isMobileMenuOpen = false"
+                >
+                  <span>Tipos de objeto</span>
+                  <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
+                </RouterLink>
+                <RouterLink
+                  to="/administracao"
+                  class="flex items-center justify-between border-b border-white/10 py-4 text-[15px] font-medium text-white/85 transition hover:text-white"
+                  @click="isMobileMenuOpen = false"
+                >
+                  <span>Administração</span>
+                  <span class="mdi mdi-chevron-right text-[18px] text-white/45"></span>
+                </RouterLink>
+              </template>
 
               <div class="mt-4 border-t border-white/25 pt-4">
                 <button
@@ -218,6 +250,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 
 defineProps({
   fullHeight: { type: Boolean, default: false },
@@ -225,6 +258,7 @@ defineProps({
 
 const router = useRouter()
 const authStore = useAuthStore()
+const configStore = useConfigStore()
 
 const headerRef    = ref(null)
 const headerHeight = ref(76)

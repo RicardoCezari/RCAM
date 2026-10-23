@@ -1,28 +1,25 @@
 import { ref } from 'vue'
+import { prepararFotos, liberarFotos } from '@/utils/imagem'
 
+// Fotos gerais da O.S. (tudo o que o cliente deixou)
 export function useFotos() {
-  const previews = ref([])
-  const files    = ref([])
+  const fotos = ref([])
 
-  function adicionar(e) {
-    Array.from(e.target.files ?? []).forEach(f => {
-      files.value.push(f)
-      previews.value.push({ name: f.name, url: URL.createObjectURL(f) })
-    })
-    e.target.value = '' // permite re-selecionar o mesmo arquivo
+  async function adicionar(event) {
+    const novas = await prepararFotos(event.target.files)
+    event.target.value = '' // permite re-selecionar o mesmo arquivo
+    fotos.value.push(...novas)
+    return novas.length
   }
 
   function remover(i) {
-    URL.revokeObjectURL(previews.value[i].url)
-    previews.value.splice(i, 1)
-    files.value.splice(i, 1)
+    liberarFotos(fotos.value.splice(i, 1))
   }
 
   function reset() {
-    previews.value.forEach(f => URL.revokeObjectURL(f.url))
-    previews.value = []
-    files.value    = []
+    liberarFotos(fotos.value)
+    fotos.value = []
   }
 
-  return { previews, files, adicionar, remover, reset }
+  return { fotos, adicionar, remover, reset }
 }

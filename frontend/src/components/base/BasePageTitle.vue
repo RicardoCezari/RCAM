@@ -2,7 +2,7 @@
   <div :class="wrapperClass">
     <h1
       :class="[
-        'mt-4 text-3xl font-semibold tracking-tight text-black sm:text-4xl',
+        'mt-1 text-2xl font-semibold tracking-tight text-black sm:mt-4 sm:text-4xl',
         titleClass,
       ]"
     >
@@ -12,7 +12,7 @@
     <p
       v-if="description"
       :class="[
-        'mt-2 max-w-2xl text-sm leading-6 text-black/55 sm:text-base',
+        'mt-1 max-w-2xl text-xs leading-5 text-black/55 sm:mt-2 sm:text-base sm:leading-6',
         descriptionClass,
       ]"
     >

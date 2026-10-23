@@ -127,6 +127,7 @@ router.post(
     body('nome').trim().notEmpty().withMessage('Nome é obrigatório'),
     body('login').trim().notEmpty().withMessage('Login é obrigatório'),
     body('senha').isLength({ min: 6 }).withMessage('Senha deve ter no mínimo 6 caracteres'),
+    body('perfil').optional().isIn(['ADMIN', 'EDITOR']).withMessage('Perfil inválido'),
     validate,
   ],
   ctrl.criar
@@ -137,6 +138,8 @@ router.put(
   [
     body('nome').optional().trim().notEmpty().withMessage('Nome não pode ser vazio'),
     body('login').optional().trim().notEmpty().withMessage('Login não pode ser vazio'),
+    body('perfil').optional().isIn(['ADMIN', 'EDITOR']).withMessage('Perfil inválido'),
+    body('senha').optional({ values: 'falsy' }).isLength({ min: 6 }).withMessage('Senha deve ter no mínimo 6 caracteres'),
     validate,
   ],
   ctrl.atualizar

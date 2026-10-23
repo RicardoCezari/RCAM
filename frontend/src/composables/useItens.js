@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { prepararFotos, liberarFotos } from '@/utils/imagem'
 
 // ── helpers de formatação ──────────────────────────────────────────────────
 export function formatarMoeda(num) {
@@ -19,7 +20,7 @@ export function parseMoeda(str) {
 }
 
 // Máscara estilo calculadora: trata dígitos como centavos → "X.XXX,XX"
-function mascaraMonetaria(raw) {
+export function mascaraMonetaria(raw) {
   const digits = String(raw || '').replace(/\D/g, '').replace(/^0+/, '') || '0'
   const padded  = digits.padStart(3, '0')
   const intPart = padded.slice(0, -2)
@@ -28,13 +29,20 @@ function mascaraMonetaria(raw) {
 }
 
 // Converte número decimal para string de centavos, depois aplica a máscara
-function numeroParaMascara(num) {
+export function numeroParaMascara(num) {
   const cents = Math.round(Math.abs(Number(num) || 0) * 100)
   return cents > 0 ? mascaraMonetaria(String(cents)) : ''
 }
+// crypto.randomUUID só existe em contexto seguro (https/localhost); no celular via IP da rede não
+let contadorId = 0
+function gerarId() {
+  contadorId += 1
+  return `${Date.now().toString(36)}-${contadorId}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 function novoServico(servico = null) {
   return {
-    _id:        crypto.randomUUID(),
+    _id:        gerarId(),
     servico_id: servico ? String(servico.id) : '',
     nome:       servico?.nome ?? '',
     quantidade: 1,
@@ -45,9 +53,10 @@ function novoServico(servico = null) {
 
 function novoObjeto() {
   return {
-    _id:           crypto.randomUUID(),
+    _id:           gerarId(),
     tipo_objeto_id: '',
     eh_orcamento:  false,
+    fotos:         [],
     servicos:      [novoServico()],
   }
 }
@@ -89,8 +98,25 @@ export function useItens(tiposObjeto, servicosDisp) {
 
   function removerObjeto(objetoId) {
     if (objetos.value.length === 1) return   // sempre manter ao menos um
+    const removido = objetos.value.find(o => o._id === objetoId)
+    if (removido) liberarFotos(removido.fotos)
     objetos.value = objetos.value.filter(o => o._id !== objetoId)
     delete erros.value[objetoId]
+  }
+
+  // Retorna quantas fotos foram adicionadas
+  async function adicionarFotosObjeto(objetoId, event) {
+    const novas = await prepararFotos(event.target.files)
+    event.target.value = ''
+    const obj = objetos.value.find(o => o._id === objetoId)
+    if (!obj) return 0
+    obj.fotos.push(...novas)
+    return novas.length
+  }
+
+  function removerFotoObjeto(objetoId, idx) {
+    const obj = objetos.value.find(o => o._id === objetoId)
+    if (obj) liberarFotos(obj.fotos.splice(idx, 1))
   }
 
   function nomeTipoObjeto(tipoId) {
@@ -233,6 +259,7 @@ export function useItens(tiposObjeto, servicosDisp) {
   }
 
   function reset() {
+    objetos.value.forEach(o => liberarFotos(o.fotos))
     objetos.value    = [novoObjeto()]
     erros.value      = {}
     descontoStr.value = ''
@@ -242,7 +269,7 @@ export function useItens(tiposObjeto, servicosDisp) {
     objetos, erros, totalGeral, totalObjeto,
     descontoStr, totalFinal,
     nomeTipoObjeto, mudarTipoObjeto, toggleOrcamento,
-    adicionarObjeto, removerObjeto,
+    adicionarObjeto, removerObjeto, adicionarFotosObjeto, removerFotoObjeto,
     adicionarServico, removerServico, mudarQuantidade,
     aoSelecionarServico, aoEditarValor, aoBlurValor,
     aoEditarDesconto, aoBlurDesconto,

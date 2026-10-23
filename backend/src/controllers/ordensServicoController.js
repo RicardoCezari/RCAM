@@ -71,4 +71,26 @@ async function removerItem(req, res, next) {
   }
 }
 
-module.exports = { listar, buscarPorId, criar, atualizar, mudarEstado, adicionarItem, atualizarItem, removerItem };
+async function adicionarFotos(req, res, next) {
+  try {
+    const fotos = await ordensService.adicionarFotos(req.params.id, req.files, req.body.item_id);
+    res.status(201).json(fotos);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function removerFoto(req, res, next) {
+  try {
+    await ordensService.removerFoto(req.params.id, req.params.fotoId);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  listar, buscarPorId, criar, atualizar, mudarEstado,
+  adicionarItem, atualizarItem, removerItem,
+  adicionarFotos, removerFoto,
+};

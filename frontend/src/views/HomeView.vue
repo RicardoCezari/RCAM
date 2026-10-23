@@ -17,11 +17,11 @@
       />
     </section>
 
-    <section class="mt-8 sm:mt-10">
+    <section v-if="authStore.isAdmin" class="mt-8 sm:mt-10">
       <p class="text-xl font-medium text-slate-500">Cadastros</p>
     </section>
 
-    <section class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <section v-if="authStore.isAdmin" class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <BaseActionCard
         v-for="card in cadastrosCards"
         :key="card.to"
@@ -79,6 +79,13 @@ const cadastrosCards = [
     title: 'Serviços',
     description: 'Gerencie o catálogo de serviços e associe-os aos tipos de objeto.',
     contentClass: 'bg-black',
+  },
+  {
+    to: '/administracao',
+    icon: 'mdi-cog-outline',
+    title: 'Administração',
+    description: 'Logo e nome da empresa exibidos no sistema e nas impressões.',
+    contentClass: 'bg-[#111111]',
   },
 ]
 </script>

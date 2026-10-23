@@ -14,14 +14,28 @@ async function buscarPorId(id) {
   return usuario;
 }
 
-async function criar({ nome, login, senha, ativo = true }) {
+async function criar({ nome, login, senha, ativo = true, perfil = 'EDITOR' }) {
   const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
-  return usuariosRepository.criar({ nome, login, senhaHash, ativo });
+  return usuariosRepository.criar({ nome, login, senhaHash, ativo, perfil });
 }
 
-async function atualizar(id, { nome, login, ativo }) {
-  await buscarPorId(id);
-  return usuariosRepository.atualizar(id, { nome, login, ativo });
+// Redefinição de senha pelo administrador (senha opcional)
+async function atualizar(id, { nome, login, ativo, perfil, senha }) {
+  const atual = await buscarPorId(id);
+
+  const perdeAdmin =
+    atual.perfil === 'ADMIN' &&
+    atual.ativo &&
+    ((perfil && perfil !== 'ADMIN') || ativo === false);
+  if (perdeAdmin && (await usuariosRepository.contarAdminsAtivos(id)) === 0) {
+    throw AppError.badRequest('Deve existir ao menos um administrador ativo');
+  }
+
+  const atualizado = await usuariosRepository.atualizar(id, { nome, login, ativo, perfil });
+  if (senha) {
+    await usuariosRepository.atualizarSenha(id, await bcrypt.hash(senha, SALT_ROUNDS));
+  }
+  return atualizado;
 }
 
 async function trocarSenha(id, senhaAtual, novaSenha) {

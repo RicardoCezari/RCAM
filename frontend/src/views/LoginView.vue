@@ -51,6 +51,9 @@
                 v-model="form.login"
                 type="text"
                 autocomplete="username"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
                 placeholder="Digite seu login"
                 class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.06)] outline-none transition placeholder:text-slate-400 focus:border-black focus:shadow-[0_12px_30px_rgba(15,23,42,0.10)] focus:ring-4 focus:ring-black/5"
                 :disabled="authStore.loading"
@@ -64,6 +67,8 @@
                   v-model="form.senha"
                   :type="mostrarSenha ? 'text' : 'password'"
                   autocomplete="current-password"
+                  autocapitalize="none"
+                  autocorrect="off"
                   placeholder="Digite sua senha"
                   class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-12 text-sm text-slate-900 shadow-[0_8px_24px_rgba(15,23,42,0.06)] outline-none transition placeholder:text-slate-400 focus:border-black focus:shadow-[0_12px_30px_rgba(15,23,42,0.10)] focus:ring-4 focus:ring-black/5"
                   :disabled="authStore.loading"
@@ -111,7 +116,7 @@ const form = ref({ login: '', senha: '' })
 const mostrarSenha = ref(false)
 
 async function handleLogin() {
-  const ok = await authStore.login(form.value.login, form.value.senha)
+  const ok = await authStore.login(form.value.login.trim(), form.value.senha)
   if (ok) router.push({ name: 'home' })
 }
 </script>

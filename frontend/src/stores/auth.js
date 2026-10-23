@@ -9,6 +9,28 @@ export const useAuthStore = defineStore('auth', () => {
   const erro = ref(null)
 
   const isAutenticado = computed(() => !!token.value)
+  const isAdmin = computed(() => usuario.value?.perfil === 'ADMIN')
+
+  function salvarUsuario(dados) {
+    usuario.value = dados
+    localStorage.setItem('usuario', JSON.stringify(dados))
+  }
+
+  // Atualiza o perfil a cada carregamento da página (o perfil pode mudar no banco)
+  let perfilPromise = null
+  function carregarPerfil(forcar = false) {
+    if (!token.value) return Promise.resolve()
+    if (forcar) perfilPromise = null
+    if (!perfilPromise) {
+      perfilPromise = api
+        .get('/auth/me')
+        .then(({ data }) => salvarUsuario({ ...usuario.value, ...(data.usuario || data) }))
+        .catch(() => {
+          // 401 já é tratado pelo interceptor
+        })
+    }
+    return perfilPromise
+  }
 
   async function login(login, senha) {
     loading.value = true
@@ -17,6 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
       const { data } = await api.post('/auth/login', { login, senha })
       token.value = data.token
       usuario.value = data.usuario
+      perfilPromise = Promise.resolve()
       localStorage.setItem('token', data.token)
       localStorage.setItem('usuario', JSON.stringify(data.usuario))
       return true
@@ -35,5 +58,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('usuario')
   }
 
-  return { token, usuario, loading, erro, isAutenticado, login, logout }
+  return { token, usuario, loading, erro, isAutenticado, isAdmin, login, logout, carregarPerfil }
 })

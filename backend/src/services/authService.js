@@ -23,7 +23,7 @@ async function login(login, senha) {
 
   return {
     token,
-    usuario: { id: usuario.id, nome: usuario.nome, login: usuario.login },
+    usuario: { id: usuario.id, nome: usuario.nome, login: usuario.login, perfil: usuario.perfil },
   };
 }
 

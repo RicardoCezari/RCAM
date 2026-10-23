@@ -16,10 +16,6 @@ const router = createRouter({
       component: () => import('@/views/HomeView.vue'),
     },
     {
-      path: '/novo-cliente',
-      redirect: '/nova-os',
-    },
-    {
       path: '/nova-os',
       name: 'nova-os',
       component: () => import('@/views/NewOsView.vue'),
@@ -35,14 +31,27 @@ const router = createRouter({
       component: () => import('@/views/ServiceOrderListView.vue'),
     },
     {
+      path: '/listar-os/:id(\\d+)',
+      name: 'detalhe-os',
+      component: () => import('@/views/OrdemServicoDetalheView.vue'),
+    },
+    {
       path: '/cadastrar-servicos',
       name: 'cadastrar-servicos',
       component: () => import('@/views/ServicosCadastroView.vue'),
+      meta: { admin: true },
     },
     {
       path: '/cadastrar-objetos',
       name: 'cadastrar-objetos',
       component: () => import('@/views/ObjetosCadastroView.vue'),
+      meta: { admin: true },
+    },
+    {
+      path: '/administracao',
+      name: 'administracao',
+      component: () => import('@/views/AdminView.vue'),
+      meta: { admin: true },
     },
     {
       path: '/:pathMatch(.*)*',
@@ -51,7 +60,7 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
   if (!to.meta.publica && !auth.isAutenticado) {
@@ -60,6 +69,11 @@ router.beforeEach((to) => {
 
   if (to.name === 'login' && auth.isAutenticado) {
     return { name: 'home' }
+  }
+
+  if (to.meta.admin) {
+    await auth.carregarPerfil()
+    if (!auth.isAdmin) return { name: 'home' }
   }
 
   return true

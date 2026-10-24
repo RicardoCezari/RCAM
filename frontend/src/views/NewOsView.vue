@@ -22,7 +22,7 @@
           <div class="flex flex-1 flex-col overflow-y-auto p-4 sm:p-5">
 
             <!-- Telefone + Nome: empilhados no mobile, lado a lado no lg+ -->
-            <div class="mb-5 grid gap-5 lg:grid-cols-[2fr_3fr]">
+            <div class="mb-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
             <BaseFormField id="os-telefone" label="Telefone" optional :error="errosCliente.telefone">
               <div class="relative">
                 <input
@@ -127,7 +127,7 @@
             </div><!-- /grid Telefone+Nome -->
 
             <!-- CPF + Email -->
-            <div class="mb-5 grid gap-5 sm:grid-cols-2">
+            <div class="mb-3 grid gap-3 sm:grid-cols-2">
               <BaseFormField id="os-cpf" label="CPF" optional :error="errosCliente.cpf">
                 <input id="os-cpf" v-model="cliente.cpf" type="text" maxlength="14" inputmode="numeric"
                   placeholder="000.000.000-00" :class="inputClass('cpf')"
@@ -168,9 +168,14 @@
 
       <!-- ── ETAPA 2: O.S. ─────────────────────────────────────── -->
       <div v-else-if="etapa === 'os'" key="os" class="flex flex-1 min-h-0 flex-col">
-        <h1 class="mb-3 shrink-0 text-lg font-semibold text-slate-900">Dados da ordem de serviço</h1>
+        <h1 class="mb-3 shrink-0 text-lg font-semibold text-slate-900">
+          {{ editandoOs ? `Editar O.S. ${osCriada?.numero ?? osCriada?.id ?? ''}` : 'Dados da ordem de serviço' }}
+        </h1>
 
-        <ClienteVinculadoBanner class="shrink-0" :nome="cliente.nome" :telefone="cliente.telefone" @alterar="etapa = 'cliente'" />
+        <ClienteVinculadoBanner
+          class="shrink-0" :nome="cliente.nome" :telefone="cliente.telefone" :pode-alterar="!editandoOs"
+          @alterar="etapa = 'cliente'"
+        />
 
         <form
           class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_4px_24px_rgba(15,23,42,0.06)]"
@@ -184,38 +189,35 @@
               :erros="errosItens"
               :tipos-objeto="tiposObjeto"
               :servicos="servicos"
-              :total-geral="totalGeral"
-              :total-final="totalFinal"
-              :desconto-str="descontoStr"
               :total-objeto="totalObjeto"
               :nome-tipo-objeto="nomeTipoObjeto"
               :mudar-quantidade="mudarQuantidade"
               :carregando="carregando"
-              :adicionar-fotos="adicionarFotosObjeto"
+              :adicionar-fotos="adicionarFotosObjetoSeguro"
+              @abrir-camera="marcarFotoPendente"
               @adicionar-objeto="adicionarObjeto"
               @remover-objeto="removerObjeto"
               @remover-foto="removerFotoObjeto"
               @adicionar-servico="adicionarServico"
               @remover-servico="removerServico"
               @selecionar-servico="aoSelecionarServico"
-              @editar-valor="aoEditarValor"
-              @blur-valor="aoBlurValor"
-              @editar-desconto="aoEditarDesconto"
-              @blur-desconto="aoBlurDesconto"
               @mudar-tipo="mudarTipoObjeto"
               @toggle-orcamento="toggleOrcamento"
             />
 
             <!-- Separador -->
-            <hr class="my-4 border-slate-100" />
+            <hr class="my-3 border-slate-100" />
 
             <!-- Data + Hora -->
-            <div class="mb-4 grid gap-4 sm:grid-cols-2">
+            <div class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
               <BaseFormField id="os-data" label="Data de entrega" required :error="errosOs.dataEntrega">
-                <input id="os-data" ref="dateInputRef" v-model="os.dataEntrega" type="date"
+                <BaseDatePicker
+                  id="os-data"
+                  :model-value="os.dataEntrega"
                   :min="minDate"
-                  :class="inputClassOs('dataEntrega')"
-                  @change="touchOs('dataEntrega')" @blur="touchOs('dataEntrega')" @click="openDatePicker" />
+                  :has-error="!!errosOs.dataEntrega"
+                  @update:model-value="(v) => { os.dataEntrega = v; touchOs('dataEntrega') }"
+                />
               </BaseFormField>
 
               <BaseFormField id="os-hora" label="Hora de entrega" optional>
@@ -241,11 +243,22 @@
               <div class="flex flex-wrap gap-2">
                 <div
                   v-for="(f, i) in fotosGerais"
-                  :key="f.url"
-                  class="relative h-20 w-20 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                  :key="f._k"
+                  :class="[
+                    'relative h-20 w-20 overflow-hidden rounded-xl border',
+                    f.status === 'erro' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50',
+                  ]"
                 >
-                  <img :src="f.url" :alt="f.name" class="h-full w-full object-cover" />
+                  <img v-if="f.status === 'ok'" :src="f.url" :alt="f.name" class="h-full w-full object-cover" />
+                  <div v-else-if="f.status === 'carregando'" class="flex h-full w-full items-center justify-center text-slate-400">
+                    <span class="mdi mdi-loading animate-spin text-[24px]"></span>
+                  </div>
+                  <div v-else class="flex h-full w-full flex-col items-center justify-center gap-0.5 text-red-500">
+                    <span class="mdi mdi-close-circle text-[26px]"></span>
+                    <span class="text-[10px] font-semibold leading-none">Não carregou</span>
+                  </div>
                   <button
+                    v-if="f.status !== 'carregando'"
                     type="button"
                     class="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-black"
                     title="Remover foto"
@@ -261,7 +274,7 @@
                 >
                   <span class="mdi mdi-camera-outline text-[22px]"></span>
                   <span class="text-[10px] font-medium">Tirar foto</span>
-                  <input ref="inputCameraGeral" type="file" accept="image/*" capture="environment" class="sr-only" @change="aoEscolherFotoGeral" />
+                  <input ref="inputCameraGeral" type="file" accept="image/*" capture="environment" class="sr-only" @click="marcarFotoPendente('geral')" @change="aoEscolherFotoGeral" />
                 </label>
                 <label
                   class="relative flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-dashed border-slate-200 text-slate-500 transition hover:border-black hover:text-black"
@@ -274,10 +287,14 @@
               </div>
 
               <div
-                v-if="promptFotoGeral"
-                class="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs"
+                v-if="promptFotoGeral || fotosGerais.some(f => f.status === 'erro')"
+                class="mt-3 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-xs"
+                :class="fotosGerais.some(f => f.status === 'erro') ? 'bg-red-50' : 'bg-slate-50'"
               >
-                <span class="font-medium text-slate-700">Foto adicionada. Tirar mais uma ou criar a O.S.?</span>
+                <span v-if="fotosGerais.some(f => f.status === 'erro')" class="font-medium text-red-700">
+                  Uma foto não carregou. Tire novamente.
+                </span>
+                <span v-else class="font-medium text-slate-700">Foto adicionada. Tirar mais uma ou {{ editandoOs ? 'salvar' : 'criar a O.S.' }}?</span>
                 <button
                   type="button"
                   class="flex items-center gap-1 rounded-lg border border-black/10 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-100"
@@ -287,12 +304,21 @@
                   Tirar outra
                 </button>
                 <button
+                  v-if="fotosGerais.some(f => f.status === 'erro')"
+                  type="button"
+                  class="rounded-lg border border-black/10 bg-white px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-100"
+                  @click="descartarFotosComErro"
+                >
+                  Descartar
+                </button>
+                <button
+                  v-else
                   type="button"
                   :disabled="salvando"
                   class="flex items-center gap-1 rounded-lg bg-black px-3 py-1.5 font-semibold text-white transition hover:bg-black/85 disabled:opacity-60"
                   @click="salvarOs"
                 >
-                  Criar O.S.
+                  {{ editandoOs ? 'Salvar alterações' : 'Criar O.S.' }}
                 </button>
               </div>
             </div>
@@ -302,16 +328,42 @@
           </div><!-- /scroll area -->
 
           <div class="shrink-0 border-t border-slate-100 px-4 py-3 sm:px-5">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <!-- Desconto e total sempre visíveis -->
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <label for="os-desconto" class="text-xs font-medium text-slate-500">Desconto</label>
+                <div class="relative">
+                  <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400">− R$</span>
+                  <input
+                    id="os-desconto"
+                    :value="descontoStr"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="0,00"
+                    class="w-28 rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-10 pr-2.5 text-right text-sm font-semibold text-slate-900 outline-none transition focus:border-black focus:bg-white focus:ring-2 focus:ring-black/10"
+                    @input="aoEditarDesconto"
+                    @blur="aoBlurDesconto"
+                  />
+                </div>
+              </div>
+              <div class="text-right leading-tight">
+                <p v-if="totalGeral > totalFinal" class="text-[11px] text-slate-400 line-through">{{ formatarMoeda(totalGeral) }}</p>
+                <p class="text-lg font-black tracking-tight text-black">
+                  <span class="mr-1 text-xs font-medium text-slate-500">Total</span>{{ formatarMoeda(totalFinal) }}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex gap-2 sm:items-center sm:justify-end">
               <button type="button"
-                class="flex items-center justify-center gap-2 rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-                @click="etapa = 'cliente'">
-                <span class="mdi mdi-arrow-left text-[16px]"></span> Voltar
+                class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 sm:flex-none"
+                @click="editandoOs ? cancelarEdicao() : (etapa = 'cliente')">
+                <span class="mdi mdi-arrow-left text-[16px]"></span> {{ editandoOs ? 'Cancelar' : 'Voltar' }}
               </button>
               <button type="submit" :disabled="salvando"
-                class="flex items-center justify-center gap-2 rounded-xl bg-black px-7 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-60">
+                class="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black px-7 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none">
                 <span :class="salvando ? 'mdi mdi-loading animate-spin' : 'mdi mdi-content-save-outline'" class="text-[18px]"></span>
-                {{ salvando ? 'Salvando...' : 'Criar O.S.' }}
+                {{ salvando ? 'Salvando...' : editandoOs ? 'Salvar alterações' : 'Criar O.S.' }}
               </button>
             </div>
           </div>
@@ -320,95 +372,118 @@
 
 
       <!-- ── ETAPA 4: Impressão ────────────────────────────────── -->
-      <div v-else-if="etapa === 'impressao'" key="impressao" class="flex flex-1 min-h-0 flex-col">
-
-        <!-- Cabeçalho de sucesso compacto -->
-        <div class="shrink-0 py-3">
-          <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-              <span class="mdi mdi-check-bold text-[20px] text-emerald-600"></span>
-            </div>
-            <div>
-              <h2 class="text-base font-semibold text-slate-900">O.S. criada com sucesso!</h2>
-              <p class="text-xs text-slate-500">{{ cliente.nome }}</p>
-            </div>
-            <!-- Número da OS em destaque -->
-            <div class="ml-auto shrink-0 flex flex-col items-end">
-              <span class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Número</span>
-              <span class="text-2xl font-black tracking-tight text-slate-900">#{{ osCriada?.numero ?? osCriada?.id }}</span>
-            </div>
-          </div>
-        </div>
+      <div v-else-if="etapa === 'impressao'" key="impressao" class="flex flex-1 min-h-0 flex-col pt-3">
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_4px_24px_rgba(15,23,42,0.06)]">
-          <div class="flex flex-1 flex-col overflow-y-auto p-4 sm:p-5">
+          <div class="flex flex-1 flex-col overflow-y-auto p-3 sm:p-5">
 
-            <!-- Resumo da OS -->
-            <BaseAlert :message="avisoFotos" class="mb-4" />
-            <p class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Resumo</p>
-            <dl class="mb-5 grid gap-x-6 gap-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div v-for="item in resumo" :key="item.label">
-                <dt class="text-[11px] text-slate-400">{{ item.label }}</dt>
-                <dd class="text-sm font-medium text-slate-900">{{ item.valor }}</dd>
+            <!-- Sucesso + número da O.S. -->
+            <div class="anim-subir mb-3 flex items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5">
+              <div class="anim-check relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <span class="anim-onda absolute inset-0 rounded-full bg-emerald-400"></span>
+                <span class="mdi mdi-check-bold relative text-[22px]"></span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-emerald-900 sm:text-base">O.S. criada com sucesso</p>
+                <p class="truncate text-xs text-emerald-800/70">{{ cliente.nome }}</p>
+              </div>
+              <div class="flex shrink-0 flex-col items-end leading-none">
+                <span class="text-[10px] font-medium uppercase tracking-wider text-emerald-800/60">O.S. nº</span>
+                <span class="mt-1 text-2xl font-bold tabular-nums tracking-tight text-emerald-900">{{ osCriada?.numero ?? osCriada?.id }}</span>
+              </div>
+            </div>
+
+            <BaseAlert :message="avisoFotos" class="mb-3" />
+            <dl class="anim-subir mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-3 sm:p-3 lg:grid-cols-3" style="animation-delay:.08s">
+              <div v-for="item in resumo" :key="item.label" :class="item.cheio ? 'col-span-2 sm:col-span-1' : ''" class="min-w-0">
+                <dt class="text-[10px] text-slate-400 sm:text-[11px]">{{ item.label }}</dt>
+                <dd class="truncate text-[13px] font-medium text-slate-900 sm:text-sm">{{ item.valor }}</dd>
               </div>
             </dl>
 
             <!-- Seção de impressão -->
-            <p class="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Impressão das vias</p>
+            <p class="anim-subir mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400" style="animation-delay:.16s">Impressão das vias</p>
 
-            <!-- Via do Cliente -->
-            <div class="mb-3 flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-                <span class="mdi mdi-account-outline text-[22px] text-slate-600"></span>
+            <div class="anim-subir grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-3" style="animation-delay:.16s">
+              <!-- Via do Cliente -->
+              <div class="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-start sm:gap-4 sm:p-4">
+                <div class="flex items-center gap-2 sm:contents">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 sm:h-10 sm:w-10">
+                    <span class="mdi mdi-account-outline text-[20px] text-slate-600 sm:text-[22px]"></span>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-slate-900 sm:text-base">Via do cliente</p>
+                    <p class="mt-0.5 hidden text-xs text-slate-500 sm:block">Nome, telefone, número da O.S. e data de entrega. Sem detalhes internos.</p>
+                  </div>
+                </div>
+                <button type="button"
+                  class="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto sm:py-2.5"
+                  @click="imprimirVia('cliente')">
+                  <span class="mdi mdi-printer-outline text-[16px]"></span>
+                  Imprimir
+                </button>
               </div>
-              <div class="min-w-0 flex-1">
-                <p class="font-semibold text-slate-900">Via do cliente</p>
-                <p class="mt-0.5 text-xs text-slate-500">Nome, telefone, número da O.S. e data de entrega. Sem detalhes internos.</p>
-              </div>
-              <button type="button"
-                class="shrink-0 flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                @click="imprimirVia('cliente')">
-                <span class="mdi mdi-printer-outline text-[16px]"></span>
-                Imprimir
-              </button>
-            </div>
 
-            <!-- Via da Loja -->
-            <div class="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-4">
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black">
-                <span class="mdi mdi-store-outline text-[22px] text-white"></span>
+              <!-- Via da Loja -->
+              <div class="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-start sm:gap-4 sm:p-4">
+                <div class="flex items-center gap-2 sm:contents">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black sm:h-10 sm:w-10">
+                    <span class="mdi mdi-store-outline text-[20px] text-white sm:text-[22px]"></span>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-slate-900 sm:text-base">Via da loja</p>
+                    <p class="mt-0.5 hidden text-xs text-slate-500 sm:block">Completo: serviço, valor, tipo de objeto, quantidade, observações e fotos.</p>
+                  </div>
+                </div>
+                <button type="button"
+                  class="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85 sm:w-auto sm:py-2.5"
+                  @click="imprimirVia('loja')">
+                  <span class="mdi mdi-printer-outline text-[16px]"></span>
+                  Imprimir
+                </button>
               </div>
-              <div class="min-w-0 flex-1">
-                <p class="font-semibold text-slate-900">Via da loja</p>
-                <p class="mt-0.5 text-xs text-slate-500">Completo: serviço, valor, tipo de objeto, quantidade, observações e fotos.</p>
-              </div>
-              <button type="button"
-                class="shrink-0 flex items-center gap-1.5 rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/85"
-                @click="imprimirVia('loja')">
-                <span class="mdi mdi-printer-outline text-[16px]"></span>
-                Imprimir
-              </button>
             </div>
 
             <!-- Botão imprimir ambas juntas -->
             <button type="button"
-              class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm font-medium text-slate-500 transition hover:border-black hover:text-slate-900"
+              class="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-2.5 text-sm font-medium text-slate-500 transition hover:border-black hover:text-slate-900 sm:mt-3 sm:py-3"
               @click="imprimirVia('ambas')">
               <span class="mdi mdi-printer-pos-outline text-[18px]"></span>
               Imprimir as duas vias juntas
             </button>
 
+            <!-- Esqueceu algo? -->
+            <p class="anim-subir mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400" style="animation-delay:.24s">Esqueceu algo?</p>
+            <div class="anim-subir grid grid-cols-2 gap-2 sm:gap-3" style="animation-delay:.24s">
+              <button type="button" :disabled="carregandoEdicao"
+                class="flex items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                @click="editarOs">
+                <span :class="carregandoEdicao ? 'mdi mdi-loading animate-spin' : 'mdi mdi-pencil-outline'" class="text-[16px]"></span>
+                Editar O.S.
+              </button>
+              <label
+                :class="[
+                  'flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50',
+                  enviandoFotoExtra ? 'pointer-events-none opacity-60' : '',
+                ]">
+                <span :class="enviandoFotoExtra ? 'mdi mdi-loading animate-spin' : 'mdi mdi-camera-outline'" class="text-[16px]"></span>
+                {{ enviandoFotoExtra ? 'Enviando...' : 'Adicionar foto' }}
+                <input type="file" accept="image/*" capture="environment" class="sr-only"
+                  :disabled="enviandoFotoExtra" @change="aoEscolherFotoExtra" />
+              </label>
+            </div>
+
           </div>
 
-          <div class="shrink-0 border-t border-slate-100 px-4 py-3 sm:px-5">
-            <div class="flex flex-col gap-2 sm:flex-row">
+          <div class="shrink-0 border-t border-slate-100 px-3 py-2.5 sm:px-5 sm:py-3">
+            <div class="flex gap-2">
               <button type="button"
-                class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                class="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-black/10 px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 sm:px-5"
                 @click="reiniciar">
                 <span class="mdi mdi-plus text-[16px]"></span> Nova O.S.
               </button>
               <RouterLink to="/"
-                class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-black/10 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+                class="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-black/10 px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 sm:px-5">
                 <span class="mdi mdi-home-outline text-[16px]"></span> Início
               </RouterLink>
             </div>
@@ -421,7 +496,7 @@
 
 <script setup>
 import { useToastStore } from '@/stores/toast'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
 import BaseFormField from '@/components/base/BaseFormField.vue'
@@ -429,14 +504,18 @@ import BaseAlert from '@/components/base/BaseAlert.vue'
 import WizardSteps from '@/components/base/WizardSteps.vue'
 import ClienteVinculadoBanner from '@/components/base/ClienteVinculadoBanner.vue'
 import BaseTimePicker from '@/components/base/BaseTimePicker.vue'
+import BaseDatePicker from '@/components/base/BaseDatePicker.vue'
 import OsItensEditor from '@/components/os/OsItensEditor.vue'
 import { useClienteForm } from '@/composables/useClienteForm'
 import { useOsForm } from '@/composables/useOsForm'
-import { useItens, formatarMoeda } from '@/composables/useItens'
+import { useItens, formatarMoeda, parseMoeda } from '@/composables/useItens'
 import { useFotos } from '@/composables/useFotos'
 import { useImpressao } from '@/composables/useImpressao'
+import { useRascunhoOs, limparRascunhoOs } from '@/composables/useRascunhoOs'
 import { buscarCliente, criarCliente } from '@/services/clientes'
-import { criarOrdem, buscarOrdem, enviarFotos } from '@/services/ordensServico'
+import { criarOrdem, buscarOrdem, enviarFotos, atualizarOrdem, adicionarItemOrdem } from '@/services/ordensServico'
+import { adicionarFotosNaLista, liberarFotos } from '@/utils/imagem'
+import { dataISO, horaCurta } from '@/utils/ordem'
 
 const route = useRoute()
 
@@ -447,7 +526,9 @@ const STEPS = [
 ]
 const etapa     = ref('cliente')
 const etapaAtual = computed(() => STEPS.findIndex(s => s.key === etapa.value))
-function podeNavegar(i) { return i < etapaAtual.value }
+// Editando a O.S. já criada (botão "Editar O.S." da tela final): não volta para a etapa do cliente
+const editandoOs = ref(false)
+function podeNavegar(i) { return !editandoOs.value && i < etapaAtual.value }
 
 // ── composables ───────────────────────────────────────────────
 const {
@@ -474,7 +555,7 @@ const {
   adicionarServico, removerServico, mudarQuantidade,
   aoSelecionarServico, aoEditarValor, aoBlurValor,
   aoEditarDesconto, aoBlurDesconto,
-  validar: validarItens, toItens, reset: resetItens,
+  validar: validarItens, toItens, reset: resetItens, carregarDeOrdem,
 } = useItens(tiposObjeto, servicos)
 
 const { fotos: fotosGerais, adicionar: adicionarFotoGeral, remover: removerFotoGeral, reset: resetFotos } = useFotos()
@@ -486,16 +567,78 @@ const salvando   = ref(false)
 const erroSalvar = ref('')
 const avisoFotos = ref('')
 const osCriada   = ref(null)
+const clienteCriado = ref(null)
+const fotosExtras = ref(0)
+const enviandoFotoExtra = ref(false)
+const carregandoEdicao = ref(false)
 const inputCameraGeral  = ref(null)
 const promptFotoGeral   = ref(false)
 
+// Alvos ('geral' ou _id do objeto) cuja foto está sendo tirada/processada: se a página recarregar
+// nesse meio tempo, o rascunho recupera o cadastro e mostra a foto com erro para tirar de novo.
+const fotosPendentes   = ref([])
+const processandoFotos = ref(0)
+
+function marcarFotoPendente(alvo) {
+  if (!fotosPendentes.value.includes(alvo)) fotosPendentes.value.push(alvo)
+}
+
+async function comFotoPendente(alvo, tarefa) {
+  processandoFotos.value++
+  try {
+    return await tarefa()
+  } finally {
+    processandoFotos.value--
+    fotosPendentes.value = fotosPendentes.value.filter(a => a !== alvo)
+  }
+}
+
+const adicionarFotosObjetoSeguro = (objetoId, event) =>
+  comFotoPendente(objetoId, () => adicionarFotosObjeto(objetoId, event))
+
+// Se o celular recarregar a página (ex.: ao abrir a câmera), o cadastro em andamento é recuperado.
+// Ao vir da lista de clientes (cliente_id na URL), o rascunho só vale se for do mesmo cliente.
+const rascunhoRestaurado = useRascunhoOs({
+  etapa, cliente, clienteVinculado, os, objetos, descontoStr, fotosGerais, fotosPendentes,
+  clienteId: route.query.cliente_id || null,
+  pausado: editandoOs,
+})
+
 const totalFotos = computed(() =>
-  fotosGerais.value.length + objetos.value.reduce((n, o) => n + o.fotos.length, 0)
+  fotosGerais.value.filter(f => f.status === 'ok').length
+  + objetos.value.reduce((n, o) => n + o.fotos.filter(f => f.status === 'ok').length, 0)
 )
 
-async function aoEscolherFotoGeral(event) {
-  promptFotoGeral.value = (await adicionarFotoGeral(event)) > 0
+const carregandoFotos = computed(() =>
+  fotosGerais.value.some(f => f.status === 'carregando')
+  || objetos.value.some(o => o.fotos.some(f => f.status === 'carregando'))
+)
+
+function descartarFotosComErro() {
+  for (let i = fotosGerais.value.length - 1; i >= 0; i--) {
+    if (fotosGerais.value[i].status === 'erro') removerFotoGeral(i)
+  }
 }
+
+async function aoEscolherFotoGeral(event) {
+  const recebidas = await comFotoPendente('geral', () => adicionarFotoGeral(event))
+  promptFotoGeral.value = recebidas > 0
+}
+
+// Se o navegador voltar da câmera sem recarregar a página, a marca de "foto pendente" é descartada
+let timerPendente = null
+function aoVoltarParaApp() {
+  if (document.visibilityState !== 'visible') return
+  clearTimeout(timerPendente)
+  timerPendente = setTimeout(() => {
+    if (!processandoFotos.value) fotosPendentes.value = []
+  }, 2500)
+}
+onMounted(() => document.addEventListener('visibilitychange', aoVoltarParaApp))
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', aoVoltarParaApp)
+  clearTimeout(timerPendente)
+})
 
 const resumo = computed(() => {
   const nOrç = objetos.value.filter(o => o.eh_orcamento).length
@@ -503,17 +646,23 @@ const resumo = computed(() => {
   const tipoLabel = nOrç === 0 ? 'Entrada' : nOrç === total ? 'Orçamento' : `Misto (${nOrç} em orç.)`
   return [
   { label: 'Tipo',          valor: tipoLabel },
-  { label: 'Cliente',       valor: cliente.nome },
+  { label: 'Cliente',       valor: cliente.nome, cheio: true },
   { label: 'Telefone',      valor: cliente.telefone || '—' },
   { label: 'Objetos',       valor: objetos.value.length + (objetos.value.length !== 1 ? ' objetos' : ' objeto') },
   { label: 'Total',         valor: totalFinal.value > 0 ? formatarMoeda(totalFinal.value) : '—' },
   { label: 'Data de entrega',valor: os.dataEntrega ? formatarData(os.dataEntrega) : '—' },
   { label: 'Hora de entrega',valor: os.horaEntrega || '—' },
-  { label: 'Fotos',         valor: totalFotos.value + (totalFotos.value !== 1 ? ' fotos' : ' foto') },
+  { label: 'Fotos',         valor: (totalFotos.value + fotosExtras.value) + (totalFotos.value + fotosExtras.value !== 1 ? ' fotos' : ' foto') },
 ]})
 
 // ── ciclo de vida ────────────────────────────────────────────
 onMounted(async () => {
+  if (rascunhoRestaurado.restaurado) {
+    toast.sucesso(rascunhoRestaurado.fotoPerdida
+      ? 'Recuperamos o cadastro. A foto não carregou: tire novamente.'
+      : 'Recuperamos o cadastro em andamento.')
+    return
+  }
   const cid = route.query.cliente_id
   if (cid) {
     try {
@@ -537,12 +686,14 @@ async function enviarFotosDaOrdem(ordemId) {
     for (const obj of objetos.value) {
       const primeiroItem = itens[posicao]
       posicao += obj.servicos.length
-      if (obj.fotos.length && primeiroItem) {
-        await enviarFotos(ordemId, obj.fotos.map(f => f.file), primeiroItem.id)
+      const fotosObj = obj.fotos.filter(f => f.status === 'ok')
+      if (fotosObj.length && primeiroItem) {
+        await enviarFotos(ordemId, fotosObj.map(f => f.file), primeiroItem.id)
       }
     }
-    if (fotosGerais.value.length) {
-      await enviarFotos(ordemId, fotosGerais.value.map(f => f.file))
+    const fotosGeraisOk = fotosGerais.value.filter(f => f.status === 'ok')
+    if (fotosGeraisOk.length) {
+      await enviarFotos(ordemId, fotosGeraisOk.map(f => f.file))
     }
   } catch {
     avisoFotos.value = 'A O.S. foi criada, mas nem todas as fotos foram enviadas. Adicione-as pela tela da O.S.'
@@ -552,15 +703,35 @@ async function enviarFotosDaOrdem(ordemId) {
 // ── salvar ────────────────────────────────────────────────────────────────────
 async function salvarOs() {
   if (salvando.value) return
+  if (carregandoFotos.value) {
+    toast.erro('Aguarde as fotos terminarem de carregar.')
+    return
+  }
   const okOs    = validarOs()
   const okItens = validarItens()
-  if (!okOs || !okItens) return
+  if (!okOs || !okItens) {
+    await nextTick()
+    const alvo = document.querySelector('[data-erro]') || (!okOs ? document.getElementById('os-data') : null)
+    alvo?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (alvo?.matches('select')) alvo.focus({ preventScroll: true })
+    return
+  }
 
   salvando.value  = true
   erroSalvar.value = ''
   avisoFotos.value = ''
+  if (editandoOs.value) {
+    await salvarEdicao()
+    salvando.value = false
+    return
+  }
   try {
     let clienteId = clienteVinculado.value?.id ?? null
+    const telefoneDigitos = cliente.telefone.replace(/\D/g, '')
+    // Se uma tentativa anterior criou o cliente mas falhou ao criar a O.S., reaproveita em vez de duplicar (409)
+    if (!clienteId && clienteCriado.value && clienteCriado.value.telefone === telefoneDigitos && clienteCriado.value.nome === cliente.nome.trim()) {
+      clienteId = clienteCriado.value.id
+    }
     if (!clienteId) {
       const novo = await criarCliente({
         nome:                  cliente.nome.trim(),
@@ -570,6 +741,7 @@ async function salvarOs() {
         informacao_adicional:  cliente.observacoes.trim() || null,
       })
       clienteId = novo.id
+      clienteCriado.value = { id: novo.id, telefone: telefoneDigitos, nome: cliente.nome.trim() }
     }
 
 
@@ -582,7 +754,7 @@ async function salvarOs() {
       itens:        toItens(),
     })
     await enviarFotosDaOrdem(osCriada.value.id)
-    toast.sucesso(`O.S. #${osCriada.value.numero ?? osCriada.value.id} criada com sucesso.`)
+    limparRascunhoOs()
     etapa.value = 'impressao'
   } catch (err) {
     const msg = err?.response?.data?.message ?? err?.response?.data?.erro
@@ -593,6 +765,119 @@ async function salvarOs() {
     toast.erro(erroSalvar.value)
   } finally {
     salvando.value = false
+  }
+}
+
+// ── editar a O.S. já criada ──────────────────────────────────────────
+// Mostra a O.S. gravada no editor: o que já existe fica travado e só recebe acréscimos
+// (novo serviço em um objeto, novo objeto, fotos) além de data, hora e observações.
+function aplicarOrdem(ordem) {
+  osCriada.value = ordem
+  carregarDeOrdem(ordem.itens, ordem.fotos)
+  resetFotos()
+  os.dataEntrega = dataISO(ordem.data_entrega)
+  os.horaEntrega = horaCurta(ordem.hora_entrega)
+  os.observacoes = ordem.observacoes || ''
+  // as fotos já enviadas contam como "extras"; as do editor são só as novas
+  fotosExtras.value = ordem.fotos?.length ?? 0
+}
+
+async function editarOs() {
+  if (!osCriada.value || carregandoEdicao.value) return
+  carregandoEdicao.value = true
+  try {
+    aplicarOrdem(await buscarOrdem(osCriada.value.id))
+    erroSalvar.value = ''
+    avisoFotos.value = ''
+    promptFotoGeral.value = false
+    editandoOs.value = true
+    etapa.value = 'os'
+  } catch {
+    toast.erro('Não foi possível abrir a O.S. para edição. Tente novamente.')
+  } finally {
+    carregandoEdicao.value = false
+  }
+}
+
+async function cancelarEdicao() {
+  editandoOs.value = false
+  etapa.value = 'impressao'
+  // descarta o que não foi salvo, para a impressão refletir só a O.S. gravada
+  try {
+    aplicarOrdem(await buscarOrdem(osCriada.value.id))
+  } catch {
+    toast.erro('Não foi possível recarregar a O.S.')
+  }
+}
+
+async function salvarEdicao() {
+  const id = osCriada.value.id
+  try {
+    await atualizarOrdem(id, {
+      data_entrega: os.dataEntrega,
+      hora_entrega: os.horaEntrega || null,
+      observacoes:  os.observacoes.trim() || null,
+    })
+
+    let falhouFoto = false
+    for (const obj of objetos.value) {
+      let primeiroItemId = obj.servicos.find(sv => sv._itemId)?._itemId ?? null
+      for (const sv of obj.servicos) {
+        if (sv._itemId) continue
+        const item = await adicionarItemOrdem(id, {
+          tipo_objeto_id: Number(obj.tipo_objeto_id),
+          servico_id:     Number(sv.servico_id),
+          quantidade:     sv.quantidade,
+          valor_unitario: parseMoeda(sv._valorStr) || null,
+          eh_orcamento:   obj.eh_orcamento,
+        })
+        sv._itemId = item.id // se algo falhar adiante, tentar de novo não duplica o que já foi gravado
+        primeiroItemId ??= item.id
+      }
+
+      const fotosObj = obj.fotos.filter(f => f.status === 'ok')
+      if (fotosObj.length && primeiroItemId) {
+        try {
+          await enviarFotos(id, fotosObj.map(f => f.file), primeiroItemId)
+          liberarFotos(fotosObj)
+          obj.fotos = obj.fotos.filter(f => !fotosObj.includes(f))
+        } catch {
+          falhouFoto = true
+        }
+      }
+    }
+
+    const fotosGeraisOk = fotosGerais.value.filter(f => f.status === 'ok')
+    if (fotosGeraisOk.length) {
+      try {
+        await enviarFotos(id, fotosGeraisOk.map(f => f.file))
+        descartarFotosEnviadas(fotosGeraisOk)
+      } catch {
+        falhouFoto = true
+      }
+    }
+
+    if (falhouFoto) {
+      erroSalvar.value = 'Os dados foram salvos, mas nem todas as fotos foram enviadas. Tente salvar de novo.'
+      toast.erro(erroSalvar.value)
+      return
+    }
+
+    aplicarOrdem(await buscarOrdem(id))
+    editandoOs.value = false
+    toast.sucesso('O.S. atualizada.')
+    etapa.value = 'impressao'
+  } catch (err) {
+    const msg = err?.response?.data?.message ?? err?.response?.data?.erro
+    erroSalvar.value = msg || 'Erro ao salvar. Tente novamente.'
+    toast.erro(erroSalvar.value)
+  }
+}
+
+function descartarFotosEnviadas(enviadas) {
+  liberarFotos(enviadas)
+  for (let i = fotosGerais.value.length - 1; i >= 0; i--) {
+    if (enviadas.includes(fotosGerais.value[i])) fotosGerais.value.splice(i, 1)
   }
 }
 
@@ -610,18 +895,44 @@ function imprimirVia(tipo) {
       })),
     })),
     tipo,
-    qtdFotos: totalFotos.value,
   })
+}
+
+// Foto esquecida: envia direto para a O.S. já criada
+async function aoEscolherFotoExtra(event) {
+  const arquivos = Array.from(event.target.files ?? [])
+  event.target.value = ''
+  if (!arquivos.length || !osCriada.value) return
+
+  enviandoFotoExtra.value = true
+  const lista = []
+  try {
+    await adicionarFotosNaLista(lista, arquivos)
+    const ok = lista.filter(f => f.status === 'ok')
+    if (!ok.length) throw new Error('nenhuma foto válida')
+    await enviarFotos(osCriada.value.id, ok.map(f => f.file))
+    fotosExtras.value += ok.length
+    toast.sucesso(ok.length === 1 ? 'Foto adicionada.' : `${ok.length} fotos adicionadas.`)
+    if (ok.length < lista.length) toast.erro('Alguma foto não pôde ser enviada.')
+  } catch {
+    toast.erro('Não foi possível enviar a foto. Tente novamente.')
+  } finally {
+    liberarFotos(lista)
+    enviandoFotoExtra.value = false
+  }
 }
 
 // ── reiniciar ────────────────────────────────────────────────
 function reiniciar() {
+  editandoOs.value = false
   etapa.value = 'cliente'
   resetCliente()
   resetOs()
   resetItens()
   resetFotos()
+  clienteCriado.value = null
   osCriada.value   = null
+  fotosExtras.value = 0
   erroSalvar.value = ''
   avisoFotos.value = ''
   promptFotoGeral.value = false
@@ -634,4 +945,15 @@ function reiniciar() {
 .slide-leave-to   { opacity: 0; transform: translateX(-16px); }
 .slide-down-enter-active, .slide-down-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
 .slide-down-enter-from, .slide-down-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* Entrada da tela de sucesso */
+.anim-subir { animation: subir .35s ease-out both; }
+.anim-check { animation: pop .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+.anim-onda  { animation: onda 1s ease-out .35s 1 both; }
+@keyframes subir { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pop   { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+@keyframes onda  { from { opacity: .55; transform: scale(1); } to { opacity: 0; transform: scale(1.9); } }
+@media (prefers-reduced-motion: reduce) {
+  .anim-subir, .anim-check, .anim-onda { animation: none; }
+}
 </style>

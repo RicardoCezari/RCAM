@@ -3,7 +3,10 @@ const { body } = require('express-validator');
 const ctrl = require('../controllers/clientesController');
 const validate = require('../middlewares/validate');
 
+const { validarIdParam } = require('../middlewares/validate');
+
 const router = Router();
+router.param('id', validarIdParam);
 
 /**
  * @openapi
@@ -18,13 +21,40 @@ const router = Router();
  *   get:
  *     tags: [Clientes]
  *     summary: Listar clientes
- *     description: Retorna lista paginada. Use `?q=` para buscar por nome, telefone ou CPF.
+ *     description: Retorna lista paginada. `q` faz busca global (nome, e-mail, observações e, quando numérico, telefone/CPF); `nome`, `telefone`, `cpf`, `email` e `observacoes` filtram por coluna (parcial, combinados com AND).
  *     parameters:
  *       - in: query
  *         name: q
  *         schema:
  *           type: string
- *         description: Texto para filtrar nome, telefone ou CPF
+ *         description: Busca global (máx. 100 caracteres)
+ *       - in: query
+ *         name: nome
+ *         schema: { type: string }
+ *       - in: query
+ *         name: telefone
+ *         schema: { type: string }
+ *         description: Compara apenas os dígitos
+ *       - in: query
+ *         name: cpf
+ *         schema: { type: string }
+ *         description: Compara apenas os dígitos
+ *       - in: query
+ *         name: email
+ *         schema: { type: string }
+ *       - in: query
+ *         name: observacoes
+ *         schema: { type: string }
+ *       - in: query
+ *         name: ordenarPor
+ *         schema:
+ *           type: string
+ *           enum: [nome, cpf, telefone, email, cadastro]
+ *       - in: query
+ *         name: direcao
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
  *       - in: query
  *         name: page
  *         schema:
@@ -152,18 +182,27 @@ router.get('/cpf/:cpf', ctrl.buscarPorCpf);
  */
 router.get('/:id', ctrl.buscarPorId);
 
+const validarTelefone = (v) => {
+  const d = String(v).replace(/\D/g, '');
+  if (d.length < 10 || d.length > 11) throw new Error('Telefone deve ter 10 ou 11 dígitos (com DDD)');
+  if (d.length === 10 && d[2] === '9') throw new Error('Celular incompleto: falta o 9 obrigatório após o DDD.');
+  return true;
+};
+const validarCpf = (v) => {
+  if (String(v).replace(/\D/g, '').length !== 11) throw new Error('CPF deve ter 11 dígitos');
+  return true;
+};
+
 router.post(
   '/',
   [
-    body('nome').trim().notEmpty().withMessage('Nome é obrigatório'),
-    body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório')
-      .custom(v => {
-        const d = v.replace(/\D/g, '');
-        if (d.length === 10 && d[2] === '9') throw new Error('Celular incompleto: falta o 9 obrigatório após o DDD.');
-        return true;
-      }),
-    body('cpf').optional({ nullable: true }).isLength({ min: 11, max: 11 }).withMessage('CPF deve ter 11 dígitos'),
-    body('email').optional({ nullable: true }).isEmail().withMessage('E-mail inválido'),
+    body('nome').isString().trim().notEmpty().withMessage('Nome é obrigatório')
+      .isLength({ max: 200 }).withMessage('Nome deve ter no máximo 200 caracteres'),
+    body('telefone').isString().withMessage('Telefone é obrigatório').bail().trim().notEmpty()
+      .withMessage('Telefone é obrigatório').bail().custom(validarTelefone),
+    body('cpf').optional({ values: 'falsy' }).custom(validarCpf),
+    body('email').optional({ values: 'falsy' }).isEmail().withMessage('E-mail inválido')
+      .isLength({ max: 150 }).withMessage('E-mail deve ter no máximo 150 caracteres'),
     validate,
   ],
   ctrl.criar
@@ -172,9 +211,12 @@ router.post(
 router.put(
   '/:id',
   [
-    body('nome').optional().trim().notEmpty().withMessage('Nome não pode ser vazio'),
-    body('cpf').optional({ nullable: true }).isLength({ min: 11, max: 11 }).withMessage('CPF deve ter 11 dígitos'),
-    body('email').optional({ nullable: true }).isEmail().withMessage('E-mail inválido'),
+    body('nome').optional().isString().trim().notEmpty().withMessage('Nome não pode ser vazio')
+      .isLength({ max: 200 }).withMessage('Nome deve ter no máximo 200 caracteres'),
+    body('telefone').optional().isString().withMessage('Telefone inválido').bail().custom(validarTelefone),
+    body('cpf').optional({ values: 'falsy' }).custom(validarCpf),
+    body('email').optional({ values: 'falsy' }).isEmail().withMessage('E-mail inválido')
+      .isLength({ max: 150 }).withMessage('E-mail deve ter no máximo 150 caracteres'),
     validate,
   ],
   ctrl.atualizar

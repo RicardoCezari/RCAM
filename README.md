@@ -33,6 +33,29 @@ O sistema permite:
 - Estados de OS: ENTRADA, ORCAMENTO, AUTORIZADO, PENDENTE, CONCLUIDO, CANCELADO
 - Swagger para documentação da API
 - Frontend para operação do sistema
+- Dashboard gerencial na Administração (somente administradores), `GET /api/dashboard`
+- Entrada rápida por PIN em aparelhos autorizados (celular compartilhado da loja)
+
+### Entrada rápida por PIN (celular compartilhado)
+
+Para um celular usado por vários funcionários: a tela de login mostra os perfis (só nome e iniciais) e cada um toca no seu e digita um PIN num teclado numérico.
+
+1. O administrador abre **Administração → Aparelhos** no celular da loja e toca em **Autorizar este aparelho**. O navegador guarda um token do aparelho; o servidor guarda só o hash dele.
+2. Em **Administração → Usuários**, define o PIN de cada funcionário. Quem não tem PIN não aparece na tela de perfis.
+3. Fora de aparelhos autorizados só existe o login com usuário e senha. O link "Entrar com usuário e senha" continua disponível no próprio aparelho. "Revogar" na aba Aparelhos desativa o celular na hora (perda ou roubo).
+
+Segurança: o PIN é guardado com HMAC (`JWT_SECRET`) + bcrypt; 5 PINs errados bloqueiam o perfil por 15 minutos (o login com senha segue funcionando; redefinir o PIN desbloqueia) e a API limita as tentativas por IP. O tamanho do PIN é `PIN_TAMANHO` (2 a 6, padrão 4). Com 2 dígitos são só 100 combinações: o bloqueio e a autorização do aparelho reduzem o risco, mas 4 dígitos é o recomendado. Trocar `PIN_TAMANHO` exige redefinir os PINs já cadastrados.
+
+Endpoints: `GET /api/auth/perfis` e `POST /api/auth/pin` (cabeçalho `X-Dispositivo`); `GET/POST/DELETE /api/dispositivos` e `PUT/DELETE /api/usuarios/:id/pin` (administradores). Esta funcionalidade adicionou colunas em `usuarios` e a tabela `dispositivos`: aplique `DB/schema.sql` no banco existente (idempotente).
+
+### Dashboard gerencial: critérios
+
+- **Período**: todas as métricas partem das O.S. **criadas** no período (`ordens_servico.data_criacao`, dia final incluído). Filtros: período (hoje, 7 dias, 30 dias, mês atual, personalizado), funcionário (quem **abriu** a O.S., `usuario_id`) e serviço (O.S. com ao menos um item do serviço; nos gráficos de serviço, só itens dele).
+- **Concluídas** = estados `CONCLUIDO` (Pronto) e `ENTREGUE`; **pendentes** = `ENTRADA`, `ORCAMENTO` e `EM_ANDAMENTO`; canceladas aparecem só na distribuição por status.
+- **Serviços realizados / faturamento / rentáveis**: itens (`itens_ordem_servico`) em `CONCLUIDO` ou `ENTREGUE`; faturamento = soma de `valor_total` desses itens; ticket médio = faturamento ÷ O.S. distintas com item concluído.
+- **Produtividade**: executor = usuário da última mudança do item para `CONCLUIDO` em `ordem_historico` (ou, na falta, `entregue_por`); serviços sem nenhum desses registros aparecem como "Sem registro do executor". O sistema não tem campo de funcionário responsável pela execução: este é o melhor registro existente.
+- **Avaliação de funcionários não existe**: não há tabela de avaliações no banco, então esse indicador não foi implementado.
+- Série: por dia (até 31 dias), por semana (até ~6 meses) ou por mês; períodos sem O.S. entram com zero. Toda a agregação é feita no PostgreSQL.
 
 ---
 
@@ -89,9 +112,55 @@ workflow/
 │   ├── vite.config.js
 │   └── ...
 ├── DB/
-│   └── migration_tipo_objeto_servicos.sql
+│   └── schema.sql        (único arquivo de schema do banco)
 ├── package.json
 └── README.md
+
+## Testes, carga e utilitários (backend)
+
+Os testes e o benchmark usam um banco separado (`azteca_test`), nunca o banco de desenvolvimento.
+
+| Comando (em `backend/`) | Função |
+| --- | --- |
+| `npm test` | Suíte de integração (API, schema, armazenamento, busca/filtros, concorrência, retenção) contra `azteca_test` (ou `TEST_DB_NAME`, sempre terminado em `_test`) |
+| `npm run db:teste` | Cria o banco de teste e aplica `DB/schema.sql` |
+| `npm run seed:carga` | Popula `azteca_test` com volume de carga (10 mil clientes, 100 mil O.S.) |
+| `npm run benchmark` | Mede latência e concorrência dos endpoints principais (serviços chamados direto, sem HTTP) |
+| `npm run explain` | `EXPLAIN (ANALYZE, BUFFERS)` das consultas reais das listagens; aponta varreduras sequenciais |
+| `npm run soak -- --duracao=300 --usuarios=50` | Carga prolongada via HTTP (API em processo separado); mede RSS, conexões, erros e latência |
+| `npm run uploads:s3` | Copia as fotos locais para o S3 (simulação por padrão; `--aplicar` envia; nunca apaga) |
+| `npm run historico:relatorio` / `historico:exportar -- --ate=AAAA-MM-DD` | Relatório e exportação CSV do histórico; **nada é apagado automaticamente** |
+| `node scripts/seed-usuario.js <login> "<Nome>" [ADMIN\|EDITOR]` | Cria um usuário; senha via `SEED_SENHA` ou gerada aleatoriamente. Não altera usuários existentes sem `--redefinir-senha` |
+
+No navegador (`frontend/`): `npx playwright test` sobe uma API em `azteca_test` (porta 3100) e o Vite (5174) e executa 31 cenários de Clientes, O.S., Dashboard e PIN. O CI (`.github/workflows/ci.yml`) roda backend, build do frontend e E2E.
+
+### Schema do banco
+
+`DB/schema.sql` é o **único** arquivo de schema. É idempotente: roda em banco novo ou existente sem apagar dados (`psql -d NOME_DO_BANCO -f DB/schema.sql`; faça backup antes em banco com dados reais). A API nunca altera o schema sozinha; os testes só aplicam o arquivo em bancos terminados em `_test`. Para mudar o banco, edite o arquivo de forma idempotente e rode-o.
+
+### Variáveis de ambiente (backend)
+
+| Variável | Uso |
+| --- | --- |
+| `JWT_SECRET` | Obrigatório, mínimo 32 caracteres. Os tokens passaram a trazer `iss`/`aud`/versão de senha: **todos precisam fazer login de novo após esta atualização** |
+| `CORS_ORIGINS` | Obrigatório em produção (origens separadas por vírgula) |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Conexão com o PostgreSQL |
+| `DB_SSL=true` | Ativa TLS com validação do certificado (obrigatório em produção para banco remoto) |
+| `DB_SSL_CA` / `DB_SSL_CA_FILE` | Certificado da CA (conteúdo ou caminho) quando a CA não é pública |
+| `DB_SSL_REJECT_UNAUTHORIZED=false` | Só para diagnóstico: desativa a validação (não use em produção) |
+| `DB_POOL_MAX` | Conexões por instância (padrão 20); instâncias x `DB_POOL_MAX` deve caber em `max_connections` |
+| `DB_STATEMENT_TIMEOUT_MS` | Padrão 30000; `0` desativa |
+| `TRUST_PROXY` | Número de proxies confiáveis à frente da API (necessário atrás de Nginx/ALB para IP real e rate limit) |
+| `DOCS_ENABLED` | Swagger em `/docs` (desligado por padrão em produção) |
+| `STORAGE_DRIVER=local\|s3` e `S3_*` | Armazenamento das fotos (padrão local); detalhes em `backend/.env.example` |
+| `RATE_LIMIT_POR_MINUTO` | Limite geral da API (o de login é separado; contadores em memória, por instância) |
+| `PIN_TAMANHO` | Dígitos do PIN de entrada rápida (2 a 6, padrão 4) |
+
+Endpoints de saúde: `GET /health` (processo vivo) e `GET /ready` (consulta o banco; 503 se falhar).
+
+Documentos: [docs/OPERACAO_E_VALIDACAO.md](docs/OPERACAO_E_VALIDACAO.md) (metodologia, resultados medidos, retenção, limitações) e [docs/MIGRACAO_NUVEM.md](docs/MIGRACAO_NUVEM.md) (plano de migração para a nuvem; **não executado**).
+
+Listagens (`/api/clientes`, `/api/ordens`) são paginadas no servidor (`page`, `limit` com teto de 100), com busca (`q`), filtros por coluna e `ordenarPor`/`direcao` em colunas permitidas.
 
 Regras de negócio
 1. Autenticação

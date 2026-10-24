@@ -46,4 +46,22 @@ async function trocarSenha(req, res, next) {
   }
 }
 
-module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha };
+async function definirPin(req, res, next) {
+  try {
+    await usuariosService.definirPin(Number(req.params.id), req.body.pin);
+    res.json({ message: 'PIN definido' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function removerPin(req, res, next) {
+  try {
+    await usuariosService.removerPin(Number(req.params.id));
+    res.json({ message: 'PIN removido' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha, definirPin, removerPin };

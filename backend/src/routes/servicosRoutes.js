@@ -3,7 +3,10 @@ const { body } = require('express-validator');
 const ctrl = require('../controllers/servicosController');
 const validate = require('../middlewares/validate');
 
+const { validarIdParam } = require('../middlewares/validate');
+
 const router = Router();
+router.param('id', validarIdParam);
 
 /**
  * @openapi
@@ -139,6 +142,9 @@ router.post(
     body('valor').isFloat({ min: 0 }).withMessage('Valor deve ser maior ou igual a 0'),
     body('tipo_ids').optional().isArray().withMessage('tipo_ids deve ser um array'),
     body('tipo_ids.*').optional().isInt({ min: 1 }).withMessage('IDs de tipo inválidos'),
+    body('tipos').optional().isArray().withMessage('tipos deve ser um array'),
+    body('tipos.*.tipo_objeto_id').optional().isInt({ min: 1 }).withMessage('ID de tipo inválido'),
+    body('tipos.*.valor').optional({ values: 'null' }).isFloat({ min: 0 }).withMessage('Valor do tipo deve ser maior ou igual a 0'),
     validate,
   ],
   ctrl.criar
@@ -151,6 +157,9 @@ router.put(
     body('valor').optional().isFloat({ min: 0 }).withMessage('Valor deve ser maior ou igual a 0'),
     body('tipo_ids').optional().isArray().withMessage('tipo_ids deve ser um array'),
     body('tipo_ids.*').optional().isInt({ min: 1 }).withMessage('IDs de tipo inválidos'),
+    body('tipos').optional().isArray().withMessage('tipos deve ser um array'),
+    body('tipos.*.tipo_objeto_id').optional().isInt({ min: 1 }).withMessage('ID de tipo inválido'),
+    body('tipos.*.valor').optional({ values: 'null' }).isFloat({ min: 0 }).withMessage('Valor do tipo deve ser maior ou igual a 0'),
     validate,
   ],
   ctrl.atualizar

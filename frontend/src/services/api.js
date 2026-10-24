@@ -19,8 +19,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // 401 no login = credenciais inválidas: mantém a tela e mostra a mensagem
-    const ehLogin = error.config?.url?.includes('/auth/login')
+    // 401 no login/PIN/perfis = credenciais ou aparelho inválidos: mantém a tela e mostra a mensagem
+    const ehLogin = /\/auth\/(login|pin|perfis|senha)/.test(error.config?.url || '')
     if (error.response?.status === 401 && !ehLogin) {
       localStorage.removeItem('token')
       localStorage.removeItem('usuario')

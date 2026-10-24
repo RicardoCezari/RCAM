@@ -3,8 +3,13 @@ const AppError = require('../utils/AppError');
 
 async function apenasAdmin(req, _res, next) {
   try {
-    const { rows } = await pool.query('SELECT perfil FROM usuarios WHERE id = $1 AND ativo = true', [req.usuario.id]);
-    if (rows[0]?.perfil !== 'ADMIN') {
+    // O authMiddleware já carrega o perfil na própria requisição; a consulta só ocorre se ele não tiver rodado
+    let perfil = req.usuario?.perfil;
+    if (perfil === undefined) {
+      const { rows } = await pool.query('SELECT perfil FROM usuarios WHERE id = $1 AND ativo = true', [req.usuario.id]);
+      perfil = rows[0]?.perfil;
+    }
+    if (perfil !== 'ADMIN') {
       return next(AppError.forbidden('Apenas administradores podem executar esta ação'));
     }
     next();

@@ -5,9 +5,9 @@ const options = {
   definition: {
     openapi: '3.0.3',
     info: {
-      title: 'Azteca OS API',
+      title: 'API de Ordens de Serviço',
       version: '1.0.0',
-      description: 'API do sistema de ordens de serviço para relojoaria **Azteca OS**.',
+      description: 'API do sistema de ordens de serviço.',
     },
     servers: [
       { url: 'http://localhost:3000', description: 'Desenvolvimento local' },
@@ -158,7 +158,7 @@ const options = {
             valor_unitario: { type: 'number', example: 25.00 },
             valor_total: { type: 'number', example: 25.00 },
             eh_orcamento: { type: 'boolean', example: false },
-            estado: { type: 'string', enum: ['CADASTRADO', 'EM_ANDAMENTO', 'CANCELADO', 'CONCLUIDO'] },
+            estado: { type: 'string', enum: ['CADASTRADO', 'EM_ANDAMENTO', 'CONCLUIDO', 'ENTREGUE', 'CANCELADO'] },
             data_entrega: { type: 'string', format: 'date', nullable: true },
             hora_entrega: { type: 'string', nullable: true, example: '18:00' },
             foto_url: { type: 'string', nullable: true },
@@ -183,7 +183,7 @@ const options = {
           properties: {
             id: { type: 'integer' },
             numero: { type: 'integer', example: 42 },
-            estado: { type: 'string', enum: ['ENTRADA', 'ORCAMENTO', 'EM_ANDAMENTO', 'CANCELADO', 'CONCLUIDO'] },
+            estado: { type: 'string', enum: ['ENTRADA', 'ORCAMENTO', 'EM_ANDAMENTO', 'CONCLUIDO', 'ENTREGUE', 'CANCELADO'] },
             cliente_id: { type: 'integer' },
             cliente_nome: { type: 'string', example: 'Carlos Oliveira' },
             cliente_telefone: { type: 'string', example: '(11) 98765-4321' },

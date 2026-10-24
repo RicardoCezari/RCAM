@@ -6,6 +6,9 @@ import router from './router'
 import { useConfigStore } from '@/stores/config'
 import { useAuthStore } from '@/stores/auth'
 import './style.css'
+import { aplicarTemaSalvo } from '@/utils/tema'
+
+aplicarTemaSalvo()
 
 const app = createApp(App)
 app.use(createPinia())

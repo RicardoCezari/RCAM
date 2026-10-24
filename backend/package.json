@@ -6,10 +6,22 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "test": "node --test --test-concurrency=1 \"tests/**/*.test.js\"",
+    "db:teste": "node scripts/teste-db.js",
+    "uploads:s3": "node scripts/migrar-uploads-s3.js",
+    "historico:relatorio": "node scripts/historico.js relatorio",
+    "historico:exportar": "node scripts/historico.js exportar",
+    "seed:carga": "node scripts/seed-carga.js",
+    "benchmark": "node scripts/benchmark.js",
+    "explain": "node scripts/explain.js",
+    "soak": "node scripts/soak.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/s3-request-presigner": "^3.1156.0",
     "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -24,6 +36,9 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
+  },
+  "overrides": {
+    "qs": "^6.16.1"
   },
   "engines": {
     "node": ">=18.0.0"

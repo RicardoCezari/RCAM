@@ -1,4 +1,5 @@
 const clientesService = require('../services/clientesService');
+const { lerPaginacao } = require('../utils/paginacao');
 
 async function buscarPorCpf(req, res, next) {
   try {
@@ -21,8 +22,17 @@ async function buscarPorTelefone(req, res, next) {
 
 async function listar(req, res, next) {
   try {
-    const { q, page, limit } = req.query;
-    const result = await clientesService.listar({ q, page, limit });
+    const { page, limit } = lerPaginacao(req.query);
+    const texto = (v) => (typeof v === 'string' ? v.trim().slice(0, 100) : '');
+    const result = await clientesService.listar({
+      q: texto(req.query.q),
+      nome: texto(req.query.nome),
+      telefone: texto(req.query.telefone),
+      cpf: texto(req.query.cpf),
+      email: texto(req.query.email),
+      observacoes: texto(req.query.observacoes),
+      page, limit, ordenarPor: req.query.ordenarPor, direcao: req.query.direcao,
+    });
     res.json(result);
   } catch (err) {
     next(err);

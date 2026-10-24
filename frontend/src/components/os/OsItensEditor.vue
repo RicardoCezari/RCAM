@@ -38,11 +38,12 @@
             accept="image/*"
             capture="environment"
             class="sr-only"
+            @click="emit('abrir-camera', obj._id)"
             @change="aoEscolherFoto(obj._id, $event)"
           />
         </label>
         <button
-          v-if="objetos.length > 1"
+          v-if="objetos.length > 1 && !objetoTravado(obj)"
           type="button"
           class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
           :aria-label="`Remover objeto ${objIdx + 1}`"
@@ -58,11 +59,22 @@
         <div class="flex flex-wrap gap-2">
           <div
             v-for="(f, fIdx) in obj.fotos"
-            :key="f.url"
-            class="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+            :key="f._k"
+            :class="[
+              'relative h-16 w-16 overflow-hidden rounded-lg border',
+              f.status === 'erro' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50',
+            ]"
           >
-            <img :src="f.url" :alt="f.name" class="h-full w-full object-cover" />
+            <img v-if="f.status === 'ok'" :src="f.url" :alt="f.name" class="h-full w-full object-cover" />
+            <div v-else-if="f.status === 'carregando'" class="flex h-full w-full items-center justify-center text-slate-400">
+              <span class="mdi mdi-loading animate-spin text-[20px]"></span>
+            </div>
+            <div v-else class="flex h-full w-full flex-col items-center justify-center gap-0.5 text-red-500">
+              <span class="mdi mdi-close-circle text-[22px]"></span>
+              <span class="text-[9px] font-semibold leading-none">Falhou</span>
+            </div>
             <button
+              v-if="f.status !== 'carregando'"
               type="button"
               class="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-black"
               title="Remover foto"
@@ -74,7 +86,29 @@
         </div>
 
         <div
-          v-if="promptFoto[obj._id]"
+          v-if="temErro(obj)"
+          class="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs"
+        >
+          <span class="font-medium text-red-700">Uma foto não carregou. Tire novamente.</span>
+          <button
+            type="button"
+            class="flex items-center gap-1 rounded-lg bg-black px-3 py-1.5 font-semibold text-white transition hover:bg-black/85"
+            @click="inputsFoto[obj._id]?.click()"
+          >
+            <span class="mdi mdi-camera-outline text-[14px]"></span>
+            Tirar outra
+          </button>
+          <button
+            type="button"
+            class="rounded-lg border border-black/10 bg-white px-3 py-1.5 font-medium text-slate-600 transition hover:bg-slate-100"
+            @click="descartarErros(obj)"
+          >
+            Descartar
+          </button>
+        </div>
+
+        <div
+          v-else-if="promptFoto[obj._id]"
           class="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs"
         >
           <span class="font-medium text-slate-700">Foto adicionada. Tirar mais uma?</span>
@@ -103,7 +137,9 @@
             <label :for="`tipo-${obj._id}`" class="text-sm font-medium text-slate-700">
               Tipo de objeto <span class="text-red-500">*</span>
             </label>
-            <label class="relative flex cursor-pointer items-center gap-1.5 select-none">
+            <label
+          :class="['relative flex items-center gap-1.5 select-none', objetoTravado(obj) ? 'cursor-not-allowed opacity-60' : 'cursor-pointer']"
+        >
               <span
                 :class="[
                   'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition',
@@ -113,15 +149,18 @@
                 <span v-if="obj.eh_orcamento" class="mdi mdi-check text-[11px] font-black text-white"></span>
               </span>
               <span class="text-xs font-medium text-slate-500">Orçamento</span>
-              <input type="checkbox" class="sr-only" :checked="obj.eh_orcamento" @change="aoToggleOrcamento(obj._id, !obj.eh_orcamento)" />
+              <input type="checkbox" class="sr-only" :checked="obj.eh_orcamento" :disabled="objetoTravado(obj)" @change="aoToggleOrcamento(obj._id, !obj.eh_orcamento)" />
             </label>
           </div>
           <div class="relative">
             <select
               :id="`tipo-${obj._id}`"
               :value="obj.tipo_objeto_id"
+              :disabled="objetoTravado(obj)"
+              :data-erro="erros[obj._id]?.tipo ? '' : null"
               :class="[
                 'w-full appearance-none rounded-xl border bg-slate-50 px-4 py-3 pr-8 text-sm text-slate-900 outline-none transition focus:bg-white focus:ring-2',
+                objetoTravado(obj) ? 'cursor-not-allowed opacity-60' : '',
                 erros[obj._id]?.tipo
                   ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
                   : 'border-slate-200 focus:border-black focus:ring-black/10',
@@ -162,25 +201,28 @@
             <div
               v-for="(sv, svIdx) in obj.servicos"
               :key="sv._id"
-              class="grid grid-cols-[1.25rem_1fr_2rem] items-start gap-x-2 gap-y-1.5
-                     sm:grid-cols-[1.25rem_1fr_5.5rem_7rem_2rem] sm:items-center sm:gap-y-0"
+              class="flex items-start gap-1.5
+                     sm:grid sm:grid-cols-[1.25rem_1fr_5.5rem_2rem] sm:items-center sm:gap-x-2"
             >
-              <!-- ① Índice — row-span-2 mobile, 1 linha desktop -->
-              <span class="row-span-2 self-center text-center text-[11px] font-medium text-slate-400 sm:row-span-1">
+              <!-- ① Índice (só no desktop) -->
+              <span class="hidden text-center text-[11px] font-medium text-slate-400 sm:block">
                 {{ svIdx + 1 }}
               </span>
 
-              <!-- ② Select — col-2 linha-1 mobile | col-2 desktop -->
-              <div class="min-w-0">
+              <!-- ② Select -->
+              <div class="min-w-0 flex-1">
                 <div v-if="!obj.tipo_objeto_id" class="flex h-10 items-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 text-xs text-slate-400">
                   <span class="mdi mdi-arrow-up-left mr-1.5 text-[13px]"></span>
-                  Selecione o tipo de objeto primeiro
+                  Escolha o tipo primeiro
                 </div>
                 <div v-else class="relative">
                   <select
                     :value="sv.servico_id"
+                    :disabled="!!sv._itemId"
+                    :data-erro="erros[obj._id]?.servicos?.[sv._id] ? '' : null"
                     :class="[
                       'w-full appearance-none rounded-xl border bg-slate-50 px-3 py-2.5 pr-7 text-sm text-slate-900 outline-none transition focus:bg-white focus:ring-2',
+                      sv._itemId ? 'cursor-not-allowed opacity-60' : '',
                       erros[obj._id]?.servicos?.[sv._id]
                         ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
                         : 'border-slate-200 focus:border-black focus:ring-black/10',
@@ -191,7 +233,7 @@
                       {{ carregando ? 'Carregando serviços...' : 'Selecione um serviço' }}
                     </option>
                     <option v-for="s in servicosParaObjeto(obj)" :key="s.id" :value="String(s.id)">
-                      {{ s.nome }}
+                      {{ rotuloServico(s, obj) }}
                     </option>
                   </select>
                   <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
@@ -203,33 +245,29 @@
                 </p>
               </div>
 
-              <!--
-                ③ Wrapper linha-2 mobile (col-start-2, col-span-1):
-                   sm:contents → filhos ocupam cols 3 e 4 no desktop.
-                   Vem antes do botão remover para que auto-placement funcione (cols 3→4→5).
-              -->
-              <div class="col-start-2 flex items-center gap-2 sm:contents">
+              <!-- ③ Quantidade e valor -->
 
-                <!-- Stepper quantidade → auto col-3 desktop -->
+                <!-- Stepper quantidade -->
                 <div
-                  class="flex h-9 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                  class="flex h-[42px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
                   :aria-label="`Quantidade do serviço ${svIdx + 1}`"
                 >
                   <button
                     type="button"
-                    class="flex w-7 items-center justify-center text-slate-500 transition hover:bg-slate-100 disabled:text-slate-300"
-                    :disabled="sv.quantidade <= 1"
+                    class="flex w-6 items-center justify-center text-slate-500 transition hover:bg-slate-100 disabled:text-slate-300 sm:w-7"
+                    :disabled="sv.quantidade <= 1 || !!sv._itemId"
                     :aria-label="`Diminuir quantidade do serviço ${svIdx + 1}`"
                     @click="mudarQuantidade(obj._id, sv._id, -1)"
                   >
                     <span class="mdi mdi-minus text-[13px]"></span>
                   </button>
-                  <span class="flex w-8 items-center justify-center border-x border-slate-200 text-sm font-semibold text-slate-900">
+                  <span class="flex w-6 items-center justify-center border-x border-slate-200 text-sm font-semibold text-slate-900 sm:w-8">
                     {{ sv.quantidade }}
                   </span>
                   <button
                     type="button"
-                    class="flex w-7 items-center justify-center text-slate-500 transition hover:bg-slate-100"
+                    class="flex w-6 items-center justify-center text-slate-500 transition hover:bg-slate-100 disabled:text-slate-300 sm:w-7"
+                    :disabled="!!sv._itemId"
                     :aria-label="`Aumentar quantidade do serviço ${svIdx + 1}`"
                     @click="mudarQuantidade(obj._id, sv._id, 1)"
                   >
@@ -237,40 +275,23 @@
                   </button>
                 </div>
 
-                <!-- Valor unitário → auto col-4 desktop -->
-                <div class="relative flex-1 sm:flex-none sm:w-full">
-                  <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-slate-400">R$</span>
-                  <input
-                    :value="sv._valorStr"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="0,00"
-                    title="Valor unitário (por unidade)"
-                    class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-8 pr-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-black focus:bg-white focus:ring-2 focus:ring-black/10"
-                    @input="aoEditarValor(obj._id, sv._id, $event)"
-                    @blur="aoBlurValor(obj._id, sv._id)"
-                  />
-                </div>
-
-              </div>
-
               <!--
                 ④ Botão remover:
-                   Mobile  → row-start-1 col-start-3 (linha 1, col 3, ao lado do select)
-                   Desktop → auto col-5 (último, sem col-start explícito para não quebrar auto-placement)
+                   Mobile  → ao lado do valor, na mesma linha
+                   Desktop → último item da grid
               -->
               <button
                 type="button"
                 :class="[
-                  'row-start-1 col-start-3 self-start mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition',
-                  'sm:row-auto sm:col-auto sm:mt-0 sm:self-center',
-                  obj.servicos.length > 1
+                  'flex h-[42px] w-7 shrink-0 items-center justify-center rounded-lg transition',
+                  'sm:h-8 sm:w-8 sm:self-center',
+                  obj.servicos.length > 1 && !sv._itemId
                     ? 'text-slate-400 hover:bg-red-50 hover:text-red-500'
                     : 'cursor-not-allowed text-slate-200',
                 ]"
-                :disabled="obj.servicos.length === 1"
+                :disabled="obj.servicos.length === 1 || !!sv._itemId"
                 :aria-label="`Remover serviço ${svIdx + 1}`"
-                :title="obj.servicos.length === 1 ? 'O objeto deve ter ao menos um serviço' : 'Remover serviço'"
+                :title="sv._itemId ? 'Serviço já gravado na O.S.' : obj.servicos.length === 1 ? 'O objeto deve ter ao menos um serviço' : 'Remover serviço'"
                 @click="removerServico(obj._id, sv._id)"
               >
                 <span class="mdi mdi-minus-circle-outline text-[17px]"></span>
@@ -302,47 +323,12 @@
       Adicionar outro objeto
     </button>
 
-    <!-- ── Total geral ─────────────────────────────────────── -->
-    <div
-      v-if="totalGeral > 0"
-      class="overflow-hidden rounded-2xl border border-black/8 bg-black text-white"
-    >
-      <!-- Subtotal (só aparece quando há desconto) -->
-      <div v-if="parseMoeda(descontoStr) > 0" class="flex items-center justify-between px-5 pt-4">
-        <p class="text-sm text-white/55">Subtotal</p>
-        <p class="text-sm text-white/55">{{ formatarMoeda(totalGeral) }}</p>
-      </div>
-
-      <!-- Linha do desconto (sempre visível) -->
-      <div class="flex items-center justify-between px-5 pt-4" :class="{ 'pt-2': parseMoeda(descontoStr) > 0 }">
-        <p class="text-sm text-white/70">Desconto</p>
-        <div class="relative">
-          <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-white/50">− R$</span>
-          <input
-            :value="descontoStr"
-            type="text"
-            inputmode="decimal"
-            placeholder="0,00"
-            class="w-32 rounded-lg border border-white/20 bg-white/10 py-1.5 pl-10 pr-3 text-right text-sm font-semibold text-white placeholder:text-white/30 outline-none transition focus:border-white/50 focus:bg-white/15"
-            @input="aoEditarDesconto"
-            @blur="aoBlurDesconto"
-          />
-        </div>
-      </div>
-
-      <!-- Total final -->
-      <div class="flex items-center justify-between px-5 py-4" :class="{ 'pt-2': true }">
-        <p class="text-sm font-medium">Total</p>
-        <p class="text-xl font-black tracking-tight">{{ formatarMoeda(totalFinal) }}</p>
-      </div>
-    </div>
-
   </div>
 </template>
 
 <script setup>
 import { reactive } from 'vue'
-import { formatarMoeda, parseMoeda } from '@/composables/useItens'
+import { formatarMoeda, valorDoServico } from '@/composables/useItens'
 
 const props = defineProps({
   adicionarFotos: { type: Function, required: true },
@@ -350,9 +336,6 @@ const props = defineProps({
   erros:          { type: Object,   required: true },
   tiposObjeto:    { type: Array,    default: () => [] },
   servicos:       { type: Array,    default: () => [] },
-  totalGeral:     { type: Number,   default: 0 },
-  totalFinal:     { type: Number,   default: 0 },
-  descontoStr:    { type: String,   default: '' },
   totalObjeto:    { type: Function, required: true },
   nomeTipoObjeto: { type: Function, required: true },
   mudarQuantidade:{ type: Function, required: true },
@@ -362,13 +345,23 @@ const props = defineProps({
 const emit = defineEmits([
   'adicionar-objeto', 'remover-objeto',
   'adicionar-servico', 'remover-servico',
-  'selecionar-servico', 'editar-valor', 'blur-valor',
-  'editar-desconto', 'blur-desconto',
-  'mudar-tipo', 'toggle-orcamento', 'remover-foto',
+  'selecionar-servico',
+  'mudar-tipo', 'toggle-orcamento', 'remover-foto', 'abrir-camera',
 ])
 
 const inputsFoto = {}
 const promptFoto = reactive({})
+
+const temErro = (obj) => obj.fotos.some(f => f.status === 'erro')
+
+// Objeto/serviço já gravado na O.S. (ao editar uma O.S. criada): não muda aqui, só recebe acréscimos
+const objetoTravado = (obj) => obj.servicos.some(s => s._itemId)
+
+function descartarErros(obj) {
+  for (let i = obj.fotos.length - 1; i >= 0; i--) {
+    if (obj.fotos[i].status === 'erro') emit('remover-foto', obj._id, i)
+  }
+}
 
 async function aoEscolherFoto(objId, event) {
   const adicionadas = await props.adicionarFotos(objId, event)
@@ -392,6 +385,11 @@ function servicosParaObjeto(obj) {
   })
 }
 
+function rotuloServico(servico, obj) {
+  const valor = Number(valorDoServico(servico, obj.tipo_objeto_id))
+  return valor > 0 ? `${servico.nome} · ${formatarMoeda(valor)}` : servico.nome
+}
+
 const adicionarObjeto  = ()           => emit('adicionar-objeto')
 const removerObjeto    = (id)         => emit('remover-objeto', id)
 const adicionarServico = (objId)      => emit('adicionar-servico', objId)
@@ -399,17 +397,5 @@ const removerServico   = (objId, sId) => emit('remover-servico', objId, sId)
 
 function aoSelecionarServico(objId, svId, servicoId) {
   emit('selecionar-servico', objId, svId, servicoId)
-}
-function aoEditarValor(objId, svId, e) {
-  emit('editar-valor', objId, svId, e)
-}
-function aoBlurValor(objId, svId) {
-  emit('blur-valor', objId, svId)
-}
-function aoEditarDesconto(e) {
-  emit('editar-desconto', e)
-}
-function aoBlurDesconto() {
-  emit('blur-desconto')
 }
 </script>

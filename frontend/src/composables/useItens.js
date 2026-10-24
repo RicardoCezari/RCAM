@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { prepararFotos, liberarFotos } from '@/utils/imagem'
+import { adicionarFotosNaLista, liberarFotos } from '@/utils/imagem'
 
 // ── helpers de formatação ──────────────────────────────────────────────────
 export function formatarMoeda(num) {
@@ -38,6 +38,12 @@ let contadorId = 0
 function gerarId() {
   contadorId += 1
   return `${Date.now().toString(36)}-${contadorId}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+// Preço do serviço para um tipo de objeto (se não houver preço próprio, vale o valor padrão)
+export function valorDoServico(servico, tipoId) {
+  const doTipo = servico?.tipos?.find((t) => String(t.tipo_objeto_id) === String(tipoId))?.valor
+  return doTipo ?? servico?.valor
 }
 
 function novoServico(servico = null) {
@@ -104,14 +110,13 @@ export function useItens(tiposObjeto, servicosDisp) {
     delete erros.value[objetoId]
   }
 
-  // Retorna quantas fotos foram adicionadas
-  async function adicionarFotosObjeto(objetoId, event) {
-    const novas = await prepararFotos(event.target.files)
+  // Retorna quantas fotos foram recebidas (inclusive as que falharam)
+  function adicionarFotosObjeto(objetoId, event) {
+    const arquivos = Array.from(event.target.files ?? [])
     event.target.value = ''
     const obj = objetos.value.find(o => o._id === objetoId)
-    if (!obj) return 0
-    obj.fotos.push(...novas)
-    return novas.length
+    if (!obj) return Promise.resolve(0)
+    return adicionarFotosNaLista(obj.fotos, arquivos)
   }
 
   function removerFotoObjeto(objetoId, idx) {
@@ -160,9 +165,10 @@ export function useItens(tiposObjeto, servicosDisp) {
     const svcDados = servicosDisp.value?.find(s => String(s.id) === String(servicoId))
     sv.servico_id = String(servicoId)
     sv.nome       = svcDados?.nome ?? ''
-    if (svcDados?.valor) {
-      sv.valor     = String(svcDados.valor)
-      sv._valorStr = numeroParaMascara(svcDados.valor)
+    if (valorDoServico(svcDados, obj.tipo_objeto_id)) {
+      const valorSvc = valorDoServico(svcDados, obj.tipo_objeto_id)
+      sv.valor     = String(valorSvc)
+      sv._valorStr = numeroParaMascara(valorSvc)
     }
     _limparErroServico(objetoId, svcId)
   }
@@ -237,9 +243,10 @@ export function useItens(tiposObjeto, servicosDisp) {
       for (const sv of obj.servicos) {
         if (!sv.servico_id) continue
         const svcDados = servicosDisp.value?.find(s => String(s.id) === String(sv.servico_id))
-        if (svcDados?.valor) {
-          sv.valor     = String(svcDados.valor)
-          sv._valorStr = numeroParaMascara(svcDados.valor)
+        const valorSvc = valorDoServico(svcDados, obj.tipo_objeto_id)
+        if (valorSvc) {
+          sv.valor     = String(valorSvc)
+          sv._valorStr = numeroParaMascara(valorSvc)
         }
       }
     }
@@ -265,6 +272,34 @@ export function useItens(tiposObjeto, servicosDisp) {
     descontoStr.value = ''
   }
 
+  // Carrega os itens já gravados de uma O.S. (cada serviço guarda o _itemId do servidor).
+  // Um objeto = itens consecutivos do mesmo tipo; fotos presas a um item iniciam um novo objeto (mesma regra da tela da O.S.)
+  function carregarDeOrdem(itens = [], fotos = []) {
+    objetos.value.forEach(o => liberarFotos(o.fotos))
+    const grupos = []
+    for (const item of itens) {
+      const tipoId = String(item.tipo_objeto_id)
+      const temFotos = fotos.some(f => f.item_id === item.id)
+      let grupo = grupos[grupos.length - 1]
+      if (!grupo || grupo.tipo_objeto_id !== tipoId || temFotos) {
+        grupo = { _id: gerarId(), tipo_objeto_id: tipoId, eh_orcamento: !!item.eh_orcamento, fotos: [], servicos: [] }
+        grupos.push(grupo)
+      }
+      const valor = Number(item.valor_unitario) || 0
+      grupo.servicos.push({
+        _id:        gerarId(),
+        _itemId:    item.id,
+        servico_id: String(item.servico_id),
+        nome:       item.servico_nome ?? '',
+        quantidade: item.quantidade,
+        valor:      valor ? String(valor) : '',
+        _valorStr:  numeroParaMascara(valor),
+      })
+    }
+    objetos.value = grupos.length ? grupos : [novoObjeto()]
+    erros.value   = {}
+  }
+
   return {
     objetos, erros, totalGeral, totalObjeto,
     descontoStr, totalFinal,
@@ -273,6 +308,6 @@ export function useItens(tiposObjeto, servicosDisp) {
     adicionarServico, removerServico, mudarQuantidade,
     aoSelecionarServico, aoEditarValor, aoBlurValor,
     aoEditarDesconto, aoBlurDesconto,
-    validar, toItens, reset,
+    validar, toItens, reset, carregarDeOrdem,
   }
 }

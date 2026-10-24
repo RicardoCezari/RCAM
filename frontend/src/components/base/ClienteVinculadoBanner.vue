@@ -8,6 +8,7 @@
       <p class="text-xs text-slate-400">{{ telefone || 'Sem telefone' }}</p>
     </div>
     <button
+      v-if="podeAlterar"
       type="button"
       class="ml-auto flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-200"
       @click="emit('alterar')"
@@ -24,6 +25,7 @@ import { computed } from 'vue'
 const props = defineProps({
   nome:     { type: String, required: true },
   telefone: { type: String, default: '' },
+  podeAlterar: { type: Boolean, default: true },
 })
 const emit = defineEmits(['alterar'])
 

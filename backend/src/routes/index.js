@@ -9,6 +9,9 @@ const clientesRoutes   = require('./clientesRoutes');
 const tiposObjetoRoutes = require('./tiposObjetoRoutes');
 const servicosRoutes   = require('./servicosRoutes');
 const ordensRoutes     = require('./ordensServicoRoutes');
+const backupRoutes     = require('./backupRoutes');
+const dashboardRoutes  = require('./dashboardRoutes');
+const dispositivosRoutes = require('./dispositivosRoutes');
 
 const router = Router();
 
@@ -25,5 +28,8 @@ router.use('/clientes',    clientesRoutes);
 router.use('/tipos-objeto', escritaApenasAdmin, tiposObjetoRoutes);
 router.use('/servicos',    escritaApenasAdmin, servicosRoutes);
 router.use('/ordens',      ordensRoutes);
+router.use('/backup',      apenasAdmin, backupRoutes);
+router.use('/dashboard',   apenasAdmin, dashboardRoutes);
+router.use('/dispositivos', apenasAdmin, dispositivosRoutes);
 
 module.exports = router;

@@ -13,22 +13,36 @@ async function buscarPorId(id) {
   return servico;
 }
 
-async function criar({ nome, valor, descricao, ativo = true, tipoIds = [] }) {
+// Aceita `tipos` ([{ tipo_objeto_id, valor }]) ou, por compatibilidade, `tipoIds` ([id, ...])
+function normalizarTipos({ tipos, tipoIds }) {
+  if (Array.isArray(tipos)) {
+    return tipos.map((t) => ({
+      tipo_objeto_id: Number(t.tipo_objeto_id),
+      valor: t.valor === null || t.valor === undefined || t.valor === '' ? null : Number(t.valor),
+    }));
+  }
+  if (Array.isArray(tipoIds)) return tipoIds.map((id) => ({ tipo_objeto_id: Number(id), valor: null }));
+  return null;
+}
+
+async function criar({ nome, valor, descricao, ativo = true, tipos, tipoIds }) {
   const servico = await servicosRepository.criar({ nome, valor, descricao, ativo });
-  if (tipoIds.length) await servicosRepository.definirTipos(servico.id, tipoIds);
+  const lista = normalizarTipos({ tipos, tipoIds });
+  if (lista?.length) await servicosRepository.definirTipos(servico.id, lista);
   return servicosRepository.buscarPorId(servico.id);
 }
 
-async function atualizar(id, { nome, valor, descricao, ativo, tipoIds }) {
+async function atualizar(id, { nome, valor, descricao, ativo, tipos, tipoIds }) {
   await buscarPorId(id);
   const servico = await servicosRepository.atualizar(id, { nome, valor, descricao, ativo });
-  if (Array.isArray(tipoIds)) await servicosRepository.definirTipos(id, tipoIds);
+  const lista = normalizarTipos({ tipos, tipoIds });
+  if (lista) await servicosRepository.definirTipos(id, lista);
   return servicosRepository.buscarPorId(servico.id);
 }
 
-async function definirTipos(id, tipoIds) {
+async function definirTipos(id, tipos) {
   await buscarPorId(id);
-  await servicosRepository.definirTipos(id, tipoIds);
+  await servicosRepository.definirTipos(id, normalizarTipos({ tipos }) ?? []);
   return servicosRepository.buscarPorId(id);
 }
 

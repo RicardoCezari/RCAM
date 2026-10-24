@@ -2,16 +2,41 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/api'
 import { fileUrl } from '@/utils/arquivos'
+import { aplicarTema } from '@/utils/tema'
 
 export const useConfigStore = defineStore('config', () => {
   const empresaNome = ref('')
+  const empresaCnpj = ref('')
+  const empresaEndereco = ref('')
+  const empresaNumero = ref('')
+  const empresaComplemento = ref('')
+  const empresaBairro = ref('')
+  const empresaTelefone = ref('')
+  const empresaWhatsapp = ref('')
+  const empresaInstagram = ref('')
+  const notaMensagem = ref('')
   const logoUrl = ref(null)
+  const pinTamanho = ref(4)
+  const temaCor = ref(null)
 
   const logoSrc = computed(() => (logoUrl.value ? fileUrl(logoUrl.value) : ''))
+  const iniciais = computed(() => (empresaNome.value || 'OS').replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2))
 
   function aplicar(data) {
     empresaNome.value = data?.empresa_nome || ''
+    empresaCnpj.value = data?.empresa_cnpj || ''
+    empresaEndereco.value = data?.empresa_endereco || ''
+    empresaNumero.value = data?.empresa_numero || ''
+    empresaComplemento.value = data?.empresa_complemento || ''
+    empresaBairro.value = data?.empresa_bairro || ''
+    empresaTelefone.value = data?.empresa_telefone || ''
+    empresaWhatsapp.value = data?.empresa_whatsapp || ''
+    empresaInstagram.value = data?.empresa_instagram || ''
+    notaMensagem.value = data?.nota_mensagem || ''
     logoUrl.value = data?.logo_url || null
+    pinTamanho.value = data?.pin_tamanho || 4
+    temaCor.value = data?.tema_cor || null
+    aplicarTema(temaCor.value)
   }
 
   async function carregar() {
@@ -23,8 +48,10 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  async function salvarNome(nome) {
-    const { data } = await api.put('/configuracoes', { empresa_nome: nome })
+  // dados = { empresa_nome, empresa_cnpj, empresa_endereco, empresa_numero, empresa_complemento, empresa_bairro, empresa_telefone,
+  //           empresa_whatsapp, empresa_instagram, nota_mensagem }
+  async function salvarDados(dados) {
+    const { data } = await api.put('/configuracoes', dados)
     aplicar(data)
   }
 
@@ -40,5 +67,15 @@ export const useConfigStore = defineStore('config', () => {
     aplicar(data)
   }
 
-  return { empresaNome, logoUrl, logoSrc, carregar, salvarNome, enviarLogo, removerLogo }
+  // cor = '#rrggbb' ou vazio para voltar ao padrão
+  async function salvarTema(cor) {
+    const { data } = await api.put('/configuracoes', { tema_cor: cor || '' })
+    aplicar(data)
+  }
+
+  return {
+    empresaNome, empresaCnpj, empresaEndereco, empresaNumero, empresaComplemento, empresaBairro,
+    empresaTelefone, empresaWhatsapp, empresaInstagram, notaMensagem,
+    logoUrl, logoSrc, iniciais, pinTamanho, temaCor, carregar, salvarDados, enviarLogo, removerLogo, salvarTema,
+  }
 })

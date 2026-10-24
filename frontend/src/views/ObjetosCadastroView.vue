@@ -15,26 +15,14 @@
       </button>
     </div>
 
-    <!-- Filtro -->
-    <div class="mb-4">
-      <div class="relative inline-block">
-        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-black/40">
-          <span class="mdi mdi-magnify text-[16px]"></span>
-        </span>
-        <input
-          v-model="filtroNome"
-          type="text"
-          placeholder="Buscar por nome..."
-          class="h-10 rounded-xl border border-black/10 bg-white pl-8 pr-4 text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10"
-        />
-      </div>
-    </div>
-
     <!-- Tabela -->
     <BaseDataTable
       :columns="columns"
-      :rows="tiposFiltrados"
+      :rows="tipos"
       :loading="carregando"
+      compact
+      search-placeholder="Buscar por nome..."
+      :default-sort="{ key: 'nome', dir: 'asc' }"
       empty-text="Nenhum tipo de objeto cadastrado."
       actions-label="Ações"
     >
@@ -139,7 +127,6 @@ const tipos    = ref([])
 const carregando = ref(false)
 const salvando   = ref(false)
 const erroGeral  = ref('')
-const filtroNome = ref('')
 
 const modalAberto        = ref(false)
 const modalDeletarAberto = ref(false)
@@ -168,13 +155,6 @@ async function carregar() {
 
 onMounted(carregar)
 
-// ─── Filtro ──────────────────────────────────────────────────────────────────
-const tiposFiltrados = computed(() => {
-  if (!filtroNome.value) return tipos.value
-  return tipos.value.filter(t =>
-    t.nome.toLowerCase().includes(filtroNome.value.toLowerCase())
-  )
-})
 
 // ─── Modal criar / editar ────────────────────────────────────────────────────
 function abrirModalCriar() {

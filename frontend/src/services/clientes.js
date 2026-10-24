@@ -15,8 +15,8 @@ export async function criarCliente(payload) {
   return data
 }
 
-export async function listarClientes(params = {}) {
-  const { data } = await api.get('/clientes', { params })
+export async function listarClientes(params = {}, config = {}) {
+  const { data } = await api.get('/clientes', { ...config, params })
   return data
 }
 

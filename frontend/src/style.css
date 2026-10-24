@@ -1,8 +1,39 @@
 @import "tailwindcss";
 
 @layer base {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+
+  /*
+   * Tema: --cor-tema (definida em utils/tema.js) é a cor de destaque. Todo "black" do Tailwind (fundos, bordas,
+   * anéis e suas transparências) passa a segui-la, mas o texto continua preto de verdade: elementos que usam
+   * text-black ficam com o preto real nas próprias propriedades. Elementos que combinam text-black com
+   * fundo/borda de destaque no mesmo elemento mantêm a cor do tema (ver exceções abaixo).
+   */
+  * {
+    --color-black: var(--cor-tema, #000);
+  }
+
+  [class*="text-black"]:not(
+      [class~="bg-black"],
+      [class~="hover:bg-black"],
+      [class~="border-black"],
+      [class~="hover:border-black"],
+      [class~="focus:border-black"]
+    ) {
+    --color-black: #000;
+  }
+}
+
+/* Botões com hover:bg-black: o fundo no hover acompanha o tema e o texto fica preto fora do hover */
+[class~="hover:bg-black"][class~="text-black"]:not(:hover) {
+  color: #000;
 }

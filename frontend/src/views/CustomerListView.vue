@@ -1,42 +1,35 @@
 <template>
   <AppLayout>
-    <div class="mb-5 flex items-start justify-between gap-3 sm:mb-8 sm:gap-4">
+    <div class="mb-3 flex items-center justify-between gap-3">
       <BasePageTitle
         title="Lista de clientes"
-        description="Gerencie os clientes e acompanhe o cadastro de forma rápida."
+        description="Clientes cadastrados e histórico de peças."
       />
       <button
         type="button"
-        class="flex shrink-0 items-center gap-2 rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-black/80"
+        class="flex shrink-0 items-center gap-1.5 rounded-xl bg-black px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-black/80"
         @click="abrirModalCriar"
       >
-        <span class="mdi mdi-plus text-[18px]"></span>
-        Novo cliente
+        <span class="mdi mdi-plus text-[17px]"></span>
+        <span class="hidden sm:inline">Novo cliente</span>
+        <span class="sm:hidden">Novo</span>
       </button>
     </div>
 
-    <div class="mb-4 flex flex-wrap items-center gap-3">
-      <div class="relative">
-        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-black/40">
-          <span class="mdi mdi-magnify text-[16px]"></span>
-        </span>
-        <input
-          v-model="filtro"
-          type="text"
-          placeholder="Buscar por nome, CPF, telefone..."
-          class="h-10 w-72 rounded-xl border border-black/10 bg-white pl-8 pr-4 text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10"
-        />
-      </div>
-    </div>
-
-    <BaseAlert :message="erroLista" class="mb-4" />
+    <BaseAlert :message="erroLista" class="mb-3" />
 
     <BaseDataTable
       :columns="columns"
-      :rows="clientesFiltrados"
+      :rows="clientes"
       :loading="carregando"
+      server-side
+      :total="total"
+      compact
       clickable
+      search-placeholder="Nome, CPF, telefone, e-mail..."
+      :default-sort="{ key: 'nome', dir: 'asc' }"
       empty-text="Nenhum cliente encontrado."
+      @query="aoConsultar"
       @row-click="abrirModalEditar"
     >
       <template #nome="{ value }">
@@ -56,13 +49,16 @@
       </template>
 
       <template #actions="{ row }">
-        <div class="flex items-center justify-end gap-2">
+        <div class="flex items-center justify-end gap-1.5">
+          <BaseIconButton icon="mdi-history" title="Histórico de peças e fotos" @click="abrirHistorico(row)" />
           <BaseIconButton icon="mdi-file-document-plus-outline" title="Nova O.S. para este cliente" @click="novaOs(row)" />
           <BaseIconButton icon="mdi-pencil" title="Editar cliente" @click="abrirModalEditar(row)" />
           <BaseIconButton icon="mdi-trash-can-outline" title="Excluir cliente" variant="danger" @click="confirmarDeletar(row)" />
         </div>
       </template>
     </BaseDataTable>
+
+    <ClienteHistoricoModal v-model="historicoAberto" :cliente="clienteHistorico" />
 
     <!-- Modal criar / editar -->
     <BaseModal
@@ -164,7 +160,7 @@
 
 <script setup>
 import { useToastStore } from '@/stores/toast'
-import { computed, onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
 import BasePageTitle from '@/components/base/BasePageTitle.vue'
@@ -174,8 +170,10 @@ import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import BaseConfirmModal from '@/components/base/BaseConfirmModal.vue'
+import ClienteHistoricoModal from '@/components/cliente/ClienteHistoricoModal.vue'
 import { formatarTelefone, _telefoneValido } from '@/composables/useClienteForm'
 import { listarClientes, criarCliente, atualizarCliente, deletarCliente } from '@/services/clientes'
+import { useListaServidor } from '@/composables/useListaServidor'
 
 const router = useRouter()
 
@@ -184,44 +182,46 @@ const inputClass =
 
 const columns = [
   { key: 'nome', label: 'Nome', slot: 'nome' },
-  { key: 'cpf', label: 'CPF', slot: 'cpf' },
+  { key: 'cpf', label: 'CPF', slot: 'cpf', hideBelow: 'md' },
   { key: 'telefone', label: 'Telefone', slot: 'telefone' },
-  { key: 'email', label: 'E-mail' },
-  { key: 'informacao_adicional', label: 'Observações', slot: 'informacao_adicional' },
+  { key: 'email', label: 'E-mail', hideBelow: 'lg' },
+  { key: 'informacao_adicional', label: 'Observações', slot: 'informacao_adicional', hideBelow: 'lg', sortable: false },
 ]
 
-// ─── Lista ─────────────────────────────────────────────────────────────────
-const clientes = ref([])
-const carregando = ref(false)
-const erroLista = ref('')
-const filtro = ref('')
-
-const clientesFiltrados = computed(() => {
-  const termo = filtro.value.trim().toLowerCase()
-  if (!termo) return clientes.value
-  const digitos = termo.replace(/\D/g, '')
-
-  return clientes.value.filter((c) =>
-    c.nome?.toLowerCase().includes(termo) ||
-    c.email?.toLowerCase().includes(termo) ||
-    (digitos && (c.cpf?.includes(digitos) || c.telefone?.replace(/\D/g, '').includes(digitos)))
-  )
-})
-
-async function carregar() {
-  carregando.value = true
-  erroLista.value = ''
-  try {
-    const res = await listarClientes({ limit: 1000 })
-    clientes.value = res.data ?? res
-  } catch (err) {
-    erroLista.value = err?.response?.data?.message || 'Não foi possível carregar os clientes.'
-  } finally {
-    carregando.value = false
-  }
+// ─── Lista ───────────────────────────────────────────────────────────────────────────────
+// Busca global, filtros por coluna, ordenação e paginação são feitos no servidor
+const FILTROS_API = {
+  nome: 'nome',
+  cpf: 'cpf',
+  telefone: 'telefone',
+  email: 'email',
+  informacao_adicional: 'observacoes',
 }
 
-onMounted(carregar)
+const { linhas: clientes, total, carregando, erro: erroLista, carregar } = useListaServidor(
+  (consulta, signal) => {
+    const params = { page: consulta.page, limit: consulta.limit }
+    if (consulta.q) params.q = consulta.q
+    for (const [coluna, valor] of Object.entries(consulta.filtros ?? {})) {
+      if (FILTROS_API[coluna]) params[FILTROS_API[coluna]] = valor
+    }
+    if (consulta.ordenarPor) {
+      params.ordenarPor = consulta.ordenarPor
+      params.direcao = consulta.direcao
+    }
+    return listarClientes(params, { signal })
+  },
+  'Não foi possível carregar os clientes.'
+)
+const aoConsultar = carregar
+
+const historicoAberto = ref(false)
+const clienteHistorico = ref(null)
+
+function abrirHistorico(cliente) {
+  clienteHistorico.value = cliente
+  historicoAberto.value = true
+}
 
 function formatarCpf(valor) {
   const d = String(valor ?? '').replace(/\D/g, '')

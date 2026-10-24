@@ -3,7 +3,10 @@ const { body } = require('express-validator');
 const ctrl = require('../controllers/usuariosController');
 const validate = require('../middlewares/validate');
 
+const { validarIdParam } = require('../middlewares/validate');
+
 const router = Router();
+router.param('id', validarIdParam);
 
 /**
  * @openapi
@@ -126,7 +129,8 @@ router.post(
   [
     body('nome').trim().notEmpty().withMessage('Nome é obrigatório'),
     body('login').trim().notEmpty().withMessage('Login é obrigatório'),
-    body('senha').isLength({ min: 6 }).withMessage('Senha deve ter no mínimo 6 caracteres'),
+    body('senha').optional({ values: 'falsy' }).isLength({ min: 6 }).withMessage('Senha deve ter no mínimo 6 caracteres'),
+    body('pin').optional({ values: 'falsy' }).isString().withMessage('PIN inválido'),
     body('perfil').optional().isIn(['ADMIN', 'EDITOR']).withMessage('Perfil inválido'),
     validate,
   ],
@@ -191,5 +195,49 @@ router.patch(
   ],
   ctrl.trocarSenha
 );
+
+/**
+ * @openapi
+ * /api/usuarios/{id}/pin:
+ *   put:
+ *     tags: [Usuários]
+ *     summary: Define ou altera o PIN de entrada rápida
+ *     description: O PIN tem o tamanho configurado em PIN_TAMANHO (2 a 6 dígitos, padrão 4). Também desbloqueia o perfil.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [pin]
+ *             properties:
+ *               pin:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: PIN definido
+ *       400:
+ *         description: PIN inválido
+ *   delete:
+ *     tags: [Usuários]
+ *     summary: Remove o PIN (o usuário deixa de aparecer na tela de perfis)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: PIN removido
+ */
+router.put('/:id/pin', [body('pin').isString().withMessage('Informe o PIN'), validate], ctrl.definirPin);
+router.delete('/:id/pin', ctrl.removerPin);
 
 module.exports = router;

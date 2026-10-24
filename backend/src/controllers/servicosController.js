@@ -21,8 +21,8 @@ async function buscarPorId(req, res, next) {
 
 async function criar(req, res, next) {
   try {
-    const { nome, valor, descricao, ativo, tipo_ids } = req.body;
-    res.status(201).json(await servicosService.criar({ nome, valor, descricao, ativo, tipoIds: tipo_ids || [] }));
+    const { nome, valor, descricao, ativo, tipo_ids, tipos } = req.body;
+    res.status(201).json(await servicosService.criar({ nome, valor, descricao, ativo, tipos, tipoIds: tipo_ids }));
   } catch (err) {
     next(err);
   }
@@ -30,8 +30,8 @@ async function criar(req, res, next) {
 
 async function atualizar(req, res, next) {
   try {
-    const { nome, valor, descricao, ativo, tipo_ids } = req.body;
-    res.json(await servicosService.atualizar(req.params.id, { nome, valor, descricao, ativo, tipoIds: tipo_ids }));
+    const { nome, valor, descricao, ativo, tipo_ids, tipos } = req.body;
+    res.json(await servicosService.atualizar(req.params.id, { nome, valor, descricao, ativo, tipos, tipoIds: tipo_ids }));
   } catch (err) {
     next(err);
   }

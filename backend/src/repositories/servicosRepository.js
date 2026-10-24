@@ -27,7 +27,12 @@ async function listar({ ativoFiltro, tipoObjetoId } = {}) {
          json_agg(tos.tipo_objeto_id ORDER BY tos.tipo_objeto_id)
          FILTER (WHERE tos.tipo_objeto_id IS NOT NULL),
          '[]'
-       ) AS tipo_ids
+       ) AS tipo_ids,
+       COALESCE(
+         json_agg(json_build_object('tipo_objeto_id', tos.tipo_objeto_id, 'valor', tos.valor) ORDER BY tos.tipo_objeto_id)
+         FILTER (WHERE tos.tipo_objeto_id IS NOT NULL),
+         '[]'
+       ) AS tipos
      FROM servicos s
      ${joinFilter}
      LEFT JOIN tipo_objeto_servicos tos ON tos.servico_id = s.id
@@ -47,7 +52,12 @@ async function buscarPorId(id) {
          json_agg(tos.tipo_objeto_id ORDER BY tos.tipo_objeto_id)
          FILTER (WHERE tos.tipo_objeto_id IS NOT NULL),
          '[]'
-       ) AS tipo_ids
+       ) AS tipo_ids,
+       COALESCE(
+         json_agg(json_build_object('tipo_objeto_id', tos.tipo_objeto_id, 'valor', tos.valor) ORDER BY tos.tipo_objeto_id)
+         FILTER (WHERE tos.tipo_objeto_id IS NOT NULL),
+         '[]'
+       ) AS tipos
      FROM servicos s
      LEFT JOIN tipo_objeto_servicos tos ON tos.servico_id = s.id
      WHERE s.id = $1
@@ -57,7 +67,8 @@ async function buscarPorId(id) {
   return rows[0] || null;
 }
 
-async function definirTipos(servicoId, tipoIds) {
+// tipos: [{ tipo_objeto_id, valor }] (valor nulo = usa o valor padrão do serviço)
+async function definirTipos(servicoId, tipos) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -65,10 +76,12 @@ async function definirTipos(servicoId, tipoIds) {
       'DELETE FROM tipo_objeto_servicos WHERE servico_id = $1',
       [servicoId]
     );
-    for (const tipoId of tipoIds) {
+    for (const { tipo_objeto_id, valor } of tipos) {
       await client.query(
-        'INSERT INTO tipo_objeto_servicos (tipo_objeto_id, servico_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [tipoId, servicoId]
+        `INSERT INTO tipo_objeto_servicos (tipo_objeto_id, servico_id, valor)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (tipo_objeto_id, servico_id) DO UPDATE SET valor = EXCLUDED.valor`,
+        [tipo_objeto_id, servicoId, valor ?? null]
       );
     }
     await client.query('COMMIT');

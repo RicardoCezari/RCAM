@@ -2,7 +2,7 @@ const { pool } = require('../config/database');
 
 async function listar() {
   const { rows } = await pool.query(
-    'SELECT id, nome, login, ativo, perfil, data_criacao FROM usuarios ORDER BY nome'
+    'SELECT id, nome, login, ativo, perfil, data_criacao, (pin_hash IS NOT NULL) AS tem_pin FROM usuarios ORDER BY nome'
   );
   return rows;
 }
@@ -63,6 +63,16 @@ async function atualizarSenha(id, senhaHash) {
   );
 }
 
+// pinHash nulo remove o PIN. Definir/remover zera tentativas e desbloqueia o perfil.
+async function atualizarPin(id, pinHash) {
+  const { rowCount } = await pool.query(
+    `UPDATE usuarios SET pin_hash = $1, pin_tentativas = 0, pin_bloqueado_ate = NULL,
+            data_atualizacao = CURRENT_TIMESTAMP WHERE id = $2`,
+    [pinHash, id]
+  );
+  return rowCount > 0;
+}
+
 module.exports = {
   listar,
   buscarPorId,
@@ -70,5 +80,6 @@ module.exports = {
   criar,
   atualizar,
   atualizarSenha,
+  atualizarPin,
   contarAdminsAtivos,
 };

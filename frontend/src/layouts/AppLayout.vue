@@ -28,17 +28,17 @@
       ref="headerRef"
       class="sticky top-0 z-40 border-b border-black/10 bg-black/95 text-white backdrop-blur"
     >
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+      <div class="mx-auto flex h-12 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <!-- brand -->
-        <RouterLink to="/" class="flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/10 sm:h-11 sm:w-11">
+        <RouterLink to="/" class="flex items-center gap-2.5">
+          <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-white/10 ring-1 ring-white/10">
             <img
               v-if="configStore.logoSrc"
               :src="configStore.logoSrc"
               :alt="configStore.empresaNome || 'Logo'"
               class="h-full w-full object-contain"
             />
-            <span v-else class="text-sm font-semibold tracking-wide text-white">Az</span>
+            <span v-else class="text-sm font-semibold uppercase tracking-wide text-white">{{ configStore.iniciais }}</span>
           </div>
           <span
             v-if="configStore.empresaNome"
@@ -103,15 +103,14 @@
           <div class="relative hidden lg:block">
             <button
               type="button"
-              class="group flex items-center gap-3 rounded-2xl px-3 py-2"
+              class="group flex items-center gap-2.5 rounded-xl px-2 py-1"
               @click="toggleUserMenu"
             >
-              <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-semibold text-black shadow-[0_0_14px_rgba(255,255,255,0.35)] ring-1 ring-white/70 transition duration-200 group-hover:-translate-y-[1px] group-hover:scale-[1.03] group-hover:shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+              <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-xs font-semibold text-black ring-1 ring-white/70 transition duration-200 group-hover:scale-[1.03]">
                 {{ iniciais }}
               </div>
               <div class="hidden lg:block">
                 <p class="text-sm font-medium leading-none">{{ nomeUsuario }}</p>
-                <p class="mt-1 text-xs text-white/55">Minha conta</p>
               </div>
             </button>
 
@@ -141,7 +140,7 @@
           <!-- mobile button -->
           <button
             type="button"
-            class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition hover:bg-white/15 sm:h-11 sm:w-11 lg:hidden"
+            class="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10 transition hover:bg-white/15 lg:hidden"
             @click="toggleMobileMenu"
           >
             <span
@@ -158,7 +157,7 @@
       <transition name="mobile-menu">
         <div
           v-if="isMobileMenuOpen"
-          class="absolute left-0 top-full z-40 max-h-[calc(100dvh-4rem)] w-full overflow-y-auto border-t border-white/10 bg-black/95 lg:hidden"
+          class="absolute left-0 top-full z-40 max-h-[calc(100dvh-3rem)] w-full overflow-y-auto border-t border-white/10 bg-black/95 lg:hidden"
         >
           <div class="px-4 py-3">
             <nav class="flex flex-col">
@@ -237,7 +236,7 @@
         'relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8',
         fullHeight
           ? 'flex flex-col pb-4'
-          : 'py-6 sm:py-8 lg:py-10',
+          : 'py-3 sm:py-4 lg:py-5',
       ]"
       :style="fullHeight ? { height: 'calc(100dvh - ' + headerHeight + 'px)' } : {}"
     >

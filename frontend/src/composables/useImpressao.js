@@ -1,10 +1,31 @@
 import { parseMoeda } from './useItens'
 import { formatarTelefone } from './useClienteForm'
-import { estadoInfo, formatarDataBR, dataISO, horaCurta } from '@/utils/ordem'
+import { formatarDataBR, dataISO, horaCurta } from '@/utils/ordem'
 import { useConfigStore } from '@/stores/config'
 
-const MOEDA = { style: 'currency', currency: 'BRL' }
 const SEM_VALOR = '—'
+
+// Endereço + número + complemento + bairro, ignorando o que não foi preenchido: "Rua X, 123 - Sala 2 - Centro"
+function enderecoCompleto({ endereco, numero, complemento, bairro }) {
+  const rua = [endereco, numero].filter(Boolean).join(', ')
+  return [rua, complemento, bairro].filter(Boolean).join(' - ')
+}
+
+// Linhas de contato impressas no topo da via do cliente (somente o que foi preenchido na Administração)
+function linhasContato(empresa) {
+  const instagram = empresa.instagram
+    ? (/^(@|https?:)/i.test(empresa.instagram) ? empresa.instagram : `@${empresa.instagram}`)
+    : ''
+  return [
+    empresa.cnpj && `CNPJ: ${empresa.cnpj}`,
+    enderecoCompleto(empresa),
+    [
+      empresa.telefone && `Telefone: ${empresa.telefone}`,
+      empresa.whatsapp && `WhatsApp: ${empresa.whatsapp}`,
+    ].filter(Boolean).join(' · '),
+    instagram && `Instagram: ${instagram}`,
+  ].filter(Boolean)
+}
 
 function esc(texto) {
   return String(texto ?? '').replace(/[&<>"']/g, (c) => (
@@ -15,122 +36,137 @@ function esc(texto) {
 const ESTILOS = `
   @page{size:80mm auto;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:"Segoe UI",Arial,sans-serif;font-size:11px;color:#111;background:#ececec}
-  .via{width:80mm;margin:8px auto;padding:10px 12px 12px;background:#fff}
+  body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;background:#ececec}
+  .via{display:flex;flex-direction:column;width:80mm;margin:8px auto;padding:8px 10px 10px;background:#fff}
+  .fim{margin-top:auto}
   @media print{
     body{background:#fff}
     .via{margin:0;page-break-after:always}
     .via:last-child{page-break-after:auto}
   }
-  small{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#777;font-weight:600}
-  .head{display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:2px solid #111}
-  .brand{display:flex;align-items:center;gap:7px}
-  .logo{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#111;color:#fff;font-size:12px;font-weight:700}
-  .logo-img{max-width:90px;max-height:36px;object-fit:contain}
-  .brand small{display:block;line-height:1.3}
-  .brand b{font-size:11px}
-  .num{text-align:right}
-  .num small{display:block}
-  .num b{font-size:19px;line-height:1;letter-spacing:-.5px}
-  .meta{display:flex;align-items:center;justify-content:space-between;margin:7px 0 5px;font-size:10px;color:#555}
-  .tag{padding:2px 8px;border-radius:999px;background:#111;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-  .cli{line-height:1.4}
-  .cli strong{font-size:12px}
-  .cli span{color:#555}
-  h4{margin:9px 0 3px;font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#777}
-  table{width:100%;border-collapse:collapse}
-  td{padding:2px 0;vertical-align:top}
-  td.v{padding-left:8px;text-align:right;white-space:nowrap;font-weight:600}
-  tr.obj td{padding-top:6px;border-top:1px dotted #bbb;font-weight:700}
-  tr.obj:first-child td{border-top:0;padding-top:0}
-  tr.sv td:first-child{padding-left:8px;color:#333}
-  .total{display:flex;align-items:baseline;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:2px solid #111;font-weight:700}
-  .total b{font-size:15px}
-  .note{margin-top:3px;font-size:9px;color:#777;font-style:italic}
-  .entrega{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding:5px 8px;border:1px solid #111;border-radius:6px}
-  .entrega b{font-size:12px}
-  .obs{margin-top:6px;padding:4px 7px;border-left:3px solid #111;background:#f3f3f3;font-size:10px;line-height:1.4}
-  .obs small{display:block;margin-bottom:1px}
-  .sign{margin-top:24px;padding-top:3px;border-top:1px solid #111;text-align:center;font-size:9px;color:#555}
-  .foot{margin-top:7px;text-align:center;font-size:8px;color:#999;text-transform:uppercase;letter-spacing:.08em}
+  .topo{text-align:center}
+  .logo-img{max-width:60mm;max-height:22mm;object-fit:contain}
+  .empresa{font-size:16px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .contato{margin-top:4px;font-size:9px;line-height:1.5;color:#222}
+  .id{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+  .id .cli{min-width:0}
+  .id .cli b{display:block;font-size:12px;text-transform:uppercase;word-break:break-word}
+  .id .cli span{display:block;margin-top:8px;font-size:11px}
+  .caixa{position:relative;flex:none;min-width:27mm;padding:3px 8px 4px;border:1px solid #000;text-align:center}
+  .caixa small{display:block;text-align:left;font-size:10px}
+  .caixa em{position:absolute;top:2px;right:5px;font-size:8px;font-style:normal;color:#333}
+  .caixa b{display:block;font-size:22px;line-height:1.1}
+  .cab{display:flex;align-items:baseline;justify-content:space-between;margin-top:10px;padding-bottom:2px;border-bottom:1px solid #000;font-size:10px}
+  .cab b{font-size:11px}
+  .obj{margin-top:7px;font-size:11px;font-weight:700}
+  .sv{margin:3px 0 0 8px}
+  .sv .nome{font-size:10px;font-weight:700}
+  .sv .linha{display:flex;align-items:flex-end;gap:5px;font-size:9px;color:#222}
+  .sv .fio{flex:1;margin-bottom:3px;border-bottom:1px solid #666}
+  .sv .linha b{font-size:11px;color:#000;white-space:nowrap}
+  .total{margin-top:8px;text-align:right;font-size:12px;font-weight:700}
+  .total .tracos{width:35%;margin:0 0 4px auto;border-top:1px solid #000}
+  .nota{margin-top:4px;font-size:8px;color:#444;font-style:italic;text-align:right}
+  .obs{margin-top:8px;padding:3px 6px;border-left:2px solid #000;font-size:9px;line-height:1.4}
+  .rodape{margin-top:12px;text-align:center;font-size:8.5px;line-height:1.55;color:#222}
+  .rodape b{display:block;font-size:9px;color:#000}
+  .assinatura{margin-top:28px;padding-top:3px;border-top:1px solid #000;text-align:center;font-size:9px;color:#222}
+  .assinatura b{display:block;font-size:11px;color:#000;text-transform:uppercase}
 `
 
 function formatarValor(numero) {
   return Number(numero).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function formatarCpf(valor) {
-  const d = String(valor ?? '').replace(/\D/g, '')
-  return d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : String(valor ?? '')
+const dois = (n) => String(n ?? 1).padStart(2, '0')
+
+// 'YYYY-MM-DD' + 'HH:MM' -> '24/10/2026 09:00:00'
+function formatarEntrega(data, hora) {
+  const dataBR = formatarDataBR(data)
+  if (!dataBR) return ''
+  const h = horaCurta(hora)
+  return h ? `${dataBR} ${h}:00` : dataBR
 }
 
-// itens = [{ nomeObjeto, servicos: [{ nome, quantidade, valor }] }]
-function montarItens(itens) {
+// itens = [{ nomeObjeto, servicos: [{ nome, quantidade, valor, dataEntrega?, horaEntrega? }] }]
+function montarItens(itens, os) {
   let total = 0
   let aOrcar = false
   let html = ''
 
-  itens.forEach((obj, idx) => {
-    html += `<tr class="obj"><td colspan="2">${idx + 1}. ${esc(obj.nomeObjeto || 'Objeto')}</td></tr>`
+  for (const obj of itens) {
+    html += `<div class="obj">${dois(1)} ${esc(obj.nomeObjeto || 'Objeto')}</div>`
 
-    obj.servicos.forEach((sv) => {
+    for (const sv of obj.servicos) {
       const qtd = sv.quantidade ?? 1
-      const valor = parseMoeda(sv.valor)
-      if (valor > 0) total += valor * qtd
+      const unitario = parseMoeda(sv.valor)
+      const subtotal = unitario * qtd
+      if (unitario > 0) total += subtotal
       else aOrcar = true
 
-      const nome = qtd > 1 ? `${qtd}\u00d7 ${sv.nome || SEM_VALOR}` : (sv.nome || SEM_VALOR)
-      html += `<tr class="sv"><td>${esc(nome)}</td><td class="v">${valor > 0 ? esc(sv.valor) : 'a orçar'}</td></tr>`
-    })
-  })
+      const entrega = formatarEntrega(sv.dataEntrega || os.dataEntrega, sv.horaEntrega || os.horaEntrega)
+      html += `
+        <div class="sv">
+          <div class="nome">${dois(qtd)} ${esc(sv.nome || SEM_VALOR)}</div>
+          <div class="linha"><span>${esc(entrega)}</span><span class="fio"></span><b>${unitario > 0 ? `R$ ${formatarValor(subtotal)}` : 'a orçar'}</b></div>
+        </div>`
+    }
+  }
 
-  return { html: `<table>${html}</table>`, total, aOrcar }
+  return { html, total, aOrcar }
 }
 
-function montarVia({ osNum, cliente, os, itens, qtdFotos, completa, hoje, empresa }) {
-  const { html, total, aOrcar } = montarItens(itens)
-  const estado = estadoInfo(os.estado).label
-  const entrega = `${esc(formatarDataBR(os.dataEntrega) || SEM_VALOR)}${os.horaEntrega ? ` às ${esc(os.horaEntrega)}` : ''}`
+function montarVia({ osNum, cliente, os, itens, loja, agora, empresa }) {
+  const { html, total, aOrcar } = montarItens(itens, os)
 
-  const detalhesCliente = [
-    cliente.telefone,
-    completa && cliente.cpf ? `CPF ${formatarCpf(cliente.cpf)}` : '',
-    completa ? cliente.email : '',
-  ].filter(Boolean).map(esc).join(' · ')
+  const contato = linhasContato(empresa)
+  const topo = loja
+    ? ''
+    : `<div class="topo">
+        ${empresa.logo
+          ? `<img class="logo-img" src="${esc(empresa.logo)}" alt="${esc(empresa.nome)}">`
+          : (empresa.nome ? `<div class="empresa">${esc(empresa.nome)}</div>` : '')}
+        ${contato.length ? `<div class="contato">${contato.map(esc).join('<br>')}</div>` : ''}
+      </div>`
 
-  const observacoes = completa
+  const observacoes = loja
     ? [
-        os.observacoes && `<div class="obs"><small>Observações do serviço</small>${esc(os.observacoes)}</div>`,
-        cliente.observacoes && `<div class="obs"><small>Observações do cliente</small>${esc(cliente.observacoes)}</div>`,
+        os.observacoes && `<div class="obs">${esc(os.observacoes)}</div>`,
+        cliente.observacoes && `<div class="obs">${esc(cliente.observacoes)}</div>`,
       ].filter(Boolean).join('')
     : ''
 
+  const rodape = loja
+    ? `<div class="assinatura"><b>${esc(cliente.nome)}</b>Recebi os itens descritos nesta nota.</div>
+       <div class="rodape">Data de emissão: ${esc(agora)}</div>`
+    : `<div class="rodape">
+         Data de emissão: ${esc(agora)}
+         <b>ESTE NÃO É UM DOCUMENTO FISCAL.</b>
+         ${empresa.mensagem ? esc(empresa.mensagem).replace(/\r?\n/g, '<br>') : ''}
+       </div>`
+
   return `
     <section class="via">
-      <div class="head">
-        <div class="brand">
-          ${empresa.logo ? `<img class="logo-img" src="${esc(empresa.logo)}" alt="">` : '<span class="logo">Az</span>'}
-          <div><small>${completa ? 'Via da loja' : 'Via do cliente'}</small><b>${esc(empresa.nome || 'Ordem de serviço')}</b></div>
+      ${topo}
+      <div class="id">
+        <div class="cli">
+          <b>${esc(cliente.nome)}</b>
+          ${cliente.telefone ? `<span>${esc(cliente.telefone)}</span>` : ''}
         </div>
-        <div class="num"><small>O.S.</small><b>#${esc(osNum)}</b></div>
+        <div class="caixa">
+          <small>O.S.:</small>
+          ${loja ? '<em>2ª Via</em>' : ''}
+          <b>${esc(osNum)}</b>
+        </div>
       </div>
 
-      <div class="meta"><span class="tag">${esc(estado)}</span><span>Emissão ${hoje}</span></div>
-
-      <div class="cli"><strong>${esc(cliente.nome)}</strong>${detalhesCliente ? `<br><span>${detalhesCliente}</span>` : ''}</div>
-
-      <h4>Serviços</h4>
+      <div class="cab"><span>Item:</span><b>Valor do Serviço:</b></div>
       ${html}
-      <div class="total"><span>Total</span><b>${total.toLocaleString('pt-BR', MOEDA)}</b></div>
-      ${aOrcar ? '<p class="note">Itens "a orçar" terão o valor informado após a avaliação.</p>' : ''}
 
-      <div class="entrega"><small>Entrega</small><b>${entrega}</b></div>
-
+      <div class="total"><div class="tracos"></div>TOTAL: R$ ${formatarValor(total)}</div>
+      ${aOrcar ? '<p class="nota">Itens "a orçar" terão o valor informado após a avaliação.</p>' : ''}
       ${observacoes}
-      ${completa && qtdFotos > 0 ? `<p class="note">${qtdFotos} foto${qtdFotos !== 1 ? 's' : ''} registrada${qtdFotos !== 1 ? 's' : ''}.</p>` : ''}
-
-      <div class="sign">${completa ? 'Recebido por' : 'Assinatura do cliente'}</div>
-      <div class="foot">Obrigado pela preferência</div>
+      <div class="fim">${rodape}</div>
     </section>
   `
 }
@@ -142,20 +178,33 @@ export function useImpressao() {
     return formatarDataBR(valor) || SEM_VALOR
   }
 
-  // cliente = { nome, telefone, cpf, email, observacoes }
-  // os      = { estado, dataEntrega: 'YYYY-MM-DD', horaEntrega, observacoes }
-  function imprimir({ osNum, cliente, os, itens = [], tipo = 'ambas', qtdFotos = 0 }) {
-    const hoje = new Date().toLocaleDateString('pt-BR')
-    const empresa = { nome: config.empresaNome, logo: config.logoSrc }
-    const dados = { osNum, cliente, os, itens, qtdFotos, hoje, empresa }
+  // cliente = { nome, telefone, observacoes }
+  // os      = { dataEntrega: 'YYYY-MM-DD', horaEntrega, observacoes }
+  // tipo    = 'cliente' | 'loja' | 'ambas'
+  function imprimir({ osNum, cliente, os, itens = [], tipo = 'ambas' }) {
+    const agora = new Date().toLocaleString('pt-BR')
+    const empresa = {
+      nome: config.empresaNome,
+      logo: config.logoSrc,
+      endereco: config.empresaEndereco,
+      numero: config.empresaNumero,
+      complemento: config.empresaComplemento,
+      bairro: config.empresaBairro,
+      cnpj: config.empresaCnpj,
+      telefone: config.empresaTelefone,
+      whatsapp: config.empresaWhatsapp,
+      instagram: config.empresaInstagram,
+      mensagem: config.notaMensagem,
+    }
+    const dados = { osNum, cliente, os, itens, agora, empresa }
 
     const vias = [
-      tipo !== 'loja' ? montarVia({ ...dados, completa: false }) : '',
-      tipo !== 'cliente' ? montarVia({ ...dados, completa: true }) : '',
+      tipo !== 'loja' ? montarVia({ ...dados, loja: false }) : '',
+      tipo !== 'cliente' ? montarVia({ ...dados, loja: true }) : '',
     ].join('')
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head>
-      <meta charset="UTF-8"><title>O.S. #${esc(osNum)}</title>
+      <meta charset="UTF-8"><title>O.S. ${esc(osNum)}</title>
       <style>${ESTILOS}</style>
     </head><body>${vias}</body></html>`
 
@@ -164,17 +213,22 @@ export function useImpressao() {
     w.document.write(html)
     w.document.close()
     w.focus()
-    // Aguarda a logo carregar antes de abrir o diálogo de impressão
+    // Aguarda a logo carregar; depois deixa todas as vias com a mesma altura (papel igual) e imprime
     const carregamentos = Array.from(w.document.images).map((img) =>
       img.complete ? null : new Promise((ok) => { img.onload = img.onerror = ok })
     )
-    Promise.all(carregamentos).then(() => setTimeout(() => w.print(), 200))
+    Promise.all(carregamentos).then(() => {
+      const folhas = Array.from(w.document.querySelectorAll('.via'))
+      const altura = Math.max(...folhas.map((f) => f.offsetHeight))
+      folhas.forEach((f) => { f.style.minHeight = `${altura}px` })
+      setTimeout(() => w.print(), 200)
+    })
   }
 
-  // Imprime a partir do formato da API: { numero, estado, data_entrega, hora_entrega, observacoes, cliente_*, itens[] }
+  // Imprime a partir do formato da API: { numero, data_entrega, hora_entrega, observacoes, cliente_*, itens[] }
   function imprimirOrdem(ordem, tipo = 'ambas') {
     const grupos = []
-    for (const item of ordem.itens ?? []) {
+    for (const item of (ordem.itens ?? []).filter((i) => i.estado !== 'CANCELADO')) {
       let grupo = grupos[grupos.length - 1]
       if (!grupo || grupo.tipoId !== item.tipo_objeto_id) {
         grupo = { tipoId: item.tipo_objeto_id, nomeObjeto: item.tipo_objeto_nome, servicos: [] }
@@ -185,6 +239,8 @@ export function useImpressao() {
         nome: item.servico_nome,
         quantidade: item.quantidade,
         valor: valor > 0 ? formatarValor(valor) : SEM_VALOR,
+        dataEntrega: dataISO(item.data_entrega),
+        horaEntrega: horaCurta(item.hora_entrega),
       })
     }
 
@@ -193,17 +249,14 @@ export function useImpressao() {
       cliente: {
         nome: ordem.cliente_nome,
         telefone: formatarTelefone(ordem.cliente_telefone),
-        cpf: ordem.cliente_cpf,
       },
       os: {
-        estado: ordem.estado,
         dataEntrega: dataISO(ordem.data_entrega),
         horaEntrega: horaCurta(ordem.hora_entrega),
         observacoes: ordem.observacoes,
       },
       itens: grupos,
       tipo,
-      qtdFotos: ordem.fotos?.length ?? 0,
     })
   }
 

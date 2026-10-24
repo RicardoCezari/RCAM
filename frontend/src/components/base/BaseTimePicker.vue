@@ -5,10 +5,11 @@
       role="button"
       tabindex="0"
       :class="[
-        'flex cursor-pointer items-center justify-between rounded-xl border bg-slate-50 px-4 py-3 text-sm outline-none transition focus:bg-white focus:ring-2',
+        'flex cursor-pointer items-center justify-between gap-2 border text-sm outline-none transition focus:ring-2',
+        compact ? 'rounded-lg bg-white px-2.5 py-1.5 focus:border-black/30 focus:ring-black/10' : 'rounded-xl bg-slate-50 px-4 py-3 focus:bg-white',
         hasError
           ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-          : 'border-slate-200 focus:border-black focus:ring-black/10',
+          : compact ? 'border-black/10' : 'border-slate-200 focus:border-black focus:ring-black/10',
         modelValue ? 'text-slate-900' : 'text-slate-400',
       ]"
       @click="abrir"
@@ -128,6 +129,7 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '--:--' },
   hasError:    { type: Boolean, default: false },
+  compact:     { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue'])

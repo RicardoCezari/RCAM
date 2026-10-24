@@ -54,6 +54,18 @@
         </span>
       </template>
 
+      <template #tem_pin="{ value }">
+        <span
+          :class="[
+            'inline-flex items-center gap-1 rounded-lg px-2.5 py-0.5 text-xs font-semibold',
+            value ? 'bg-black/5 text-black/70' : 'text-black/30',
+          ]"
+        >
+          <span v-if="value" class="mdi mdi-dialpad text-[14px]"></span>
+          {{ value ? 'PIN' : '—' }}
+        </span>
+      </template>
+
       <template #actions="{ row }">
         <div class="flex items-center justify-end gap-2">
           <BaseIconButton icon="mdi-pencil" title="Editar usuário" @click="abrirEditar(row)" />
@@ -91,18 +103,46 @@
 
         <BaseFormField
           :label="modoEdicao ? 'Nova senha' : 'Senha'"
-          :required="!modoEdicao"
-          :optional="modoEdicao"
+          :required="!senhaOpcional"
+          :optional="senhaOpcional"
           :error="erros.senha"
         >
           <input
             v-model="form.senha"
             type="password"
             autocomplete="new-password"
-            :placeholder="modoEdicao ? 'Deixe em branco para manter' : 'Mínimo 6 caracteres'"
+            :placeholder="modoEdicao ? 'Deixe em branco para manter' : senhaOpcional ? 'Em branco = entra só com PIN' : 'Mínimo 6 caracteres'"
             :class="[inputClass, { 'border-red-400': erros.senha }]"
             @input="erros.senha = ''"
           />
+        </BaseFormField>
+
+        <BaseFormField label="PIN de entrada rápida" optional :error="erros.pin">
+          <div class="flex items-center gap-2">
+            <input
+              v-model="form.pin"
+              type="password"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              autocomplete="off"
+              :maxlength="config.pinTamanho"
+              :placeholder="form.tem_pin ? 'Digite para trocar o PIN' : `${config.pinTamanho} dígitos`"
+              data-testid="campo-pin"
+              :class="[inputClass, { 'border-red-400': erros.pin }]"
+              @input="form.pin = form.pin.replace(/\D/g, ''); erros.pin = ''"
+            />
+            <button
+              v-if="modoEdicao && form.tem_pin"
+              type="button"
+              class="shrink-0 rounded-xl border border-black/10 px-3 py-2.5 text-sm font-medium text-black/70 transition hover:bg-black/5"
+              @click="removerPinAtual"
+            >
+              Remover PIN
+            </button>
+          </div>
+          <p class="mt-1 text-xs text-black/45">
+            Permite entrar tocando no perfil, apenas em aparelhos autorizados. Sem PIN, o usuário não aparece na tela de perfis.
+          </p>
         </BaseFormField>
 
         <BaseFormField label="Perfil">
@@ -167,17 +207,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BaseDataTable from '@/components/base/BaseDataTable.vue'
 import BaseModal from '@/components/base/BaseModal.vue'
 import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
 import { listarUsuarios, criarUsuario, atualizarUsuario } from '@/services/usuarios'
+import { definirPin, removerPin } from '@/services/dispositivo'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import { useToastStore } from '@/stores/toast'
 
 const auth = useAuthStore()
+const config = useConfigStore()
 const toast = useToastStore()
 
 const inputClass =
@@ -192,7 +235,12 @@ const columns = [
   { key: 'nome', label: 'Nome', slot: 'nome' },
   { key: 'login', label: 'Login', slot: 'login' },
   { key: 'perfil', label: 'Perfil', slot: 'perfil' },
-  { key: 'ativo', label: 'Status', slot: 'ativo' },
+  { key: 'tem_pin', label: 'PIN', slot: 'tem_pin' },
+  {
+    key: 'ativo', label: 'Status', slot: 'ativo',
+    filterOptions: [{ value: 'Ativo', label: 'Ativo' }, { value: 'Inativo', label: 'Inativo' }],
+    filterValue: (r) => (r.ativo ? 'Ativo' : 'Inativo'),
+  },
 ]
 
 const usuarios = ref([])
@@ -203,9 +251,12 @@ const erroGeral = ref('')
 
 const modalAberto = ref(false)
 const modoEdicao = ref(false)
-const formInicial = () => ({ id: null, nome: '', login: '', senha: '', perfil: 'EDITOR', ativo: true })
+const formInicial = () => ({ id: null, nome: '', login: '', senha: '', pin: '', tem_pin: false, perfil: 'EDITOR', ativo: true })
 const form = ref(formInicial())
-const erros = ref({ nome: '', login: '', senha: '' })
+const erros = ref({ nome: '', login: '', senha: '', pin: '' })
+
+// Editor pode ser criado sem senha (entra só por PIN); administrador sempre precisa de senha
+const senhaOpcional = computed(() => modoEdicao.value || form.value.perfil === 'EDITOR')
 
 async function carregar() {
   carregando.value = true
@@ -222,28 +273,45 @@ async function carregar() {
 function abrirCriar() {
   modoEdicao.value = false
   form.value = formInicial()
-  erros.value = { nome: '', login: '', senha: '' }
+  erros.value = { nome: '', login: '', senha: '', pin: '' }
   erroGeral.value = ''
   modalAberto.value = true
 }
 
 function abrirEditar(usuario) {
   modoEdicao.value = true
-  form.value = { ...formInicial(), ...usuario, senha: '' }
-  erros.value = { nome: '', login: '', senha: '' }
+  form.value = { ...formInicial(), ...usuario, senha: '', pin: '' }
+  erros.value = { nome: '', login: '', senha: '', pin: '' }
   erroGeral.value = ''
   modalAberto.value = true
 }
 
 function validar() {
-  const e = { nome: '', login: '', senha: '' }
+  const e = { nome: '', login: '', senha: '', pin: '' }
   if (!form.value.nome.trim()) e.nome = 'Informe o nome'
   if (!form.value.login.trim()) e.login = 'Informe o login'
-  if ((!modoEdicao.value || form.value.senha) && form.value.senha.length < 6) {
+  if (!modoEdicao.value && !form.value.senha && senhaOpcional.value) {
+    if (!form.value.pin) e.pin = 'Informe uma senha ou um PIN'
+  } else if ((!modoEdicao.value || form.value.senha) && form.value.senha.length < 6) {
     e.senha = 'A senha deve ter no mínimo 6 caracteres'
   }
+  if (form.value.pin && form.value.pin.length !== config.pinTamanho) {
+    e.pin = `O PIN deve ter ${config.pinTamanho} dígitos`
+  }
   erros.value = e
-  return !e.nome && !e.login && !e.senha
+  return !e.nome && !e.login && !e.senha && !e.pin
+}
+
+async function removerPinAtual() {
+  erroGeral.value = ''
+  try {
+    await removerPin(form.value.id)
+    form.value.tem_pin = false
+    toast.sucesso('PIN removido.')
+    await carregar()
+  } catch (err) {
+    erroGeral.value = err.response?.data?.message || 'Não foi possível remover o PIN'
+  }
 }
 
 async function salvar() {
@@ -257,12 +325,14 @@ async function salvar() {
     perfil: form.value.perfil,
   }
   if (form.value.senha) payload.senha = form.value.senha
+  if (!modoEdicao.value && form.value.pin) payload.pin = form.value.pin
 
   try {
     if (modoEdicao.value) {
       payload.ativo = form.value.ativo
       await atualizarUsuario(form.value.id, payload)
       if (form.value.id === auth.usuario?.id) await auth.carregarPerfil(true)
+      if (form.value.pin) await definirPin(form.value.id, form.value.pin)
     } else {
       await criarUsuario(payload)
     }

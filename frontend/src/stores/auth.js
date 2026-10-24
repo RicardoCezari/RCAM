@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/api'
+import { entrarComPin } from '@/services/dispositivo'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || null)
   const usuario = ref(JSON.parse(localStorage.getItem('usuario') || 'null'))
   const loading = ref(false)
   const erro = ref(null)
+  // Administração liberada pelo PIN: só em memória, vale enquanto o usuário permanece nela
+  const adminLiberado = ref(false)
 
   const isAutenticado = computed(() => !!token.value)
   const isAdmin = computed(() => usuario.value?.perfil === 'ADMIN')
@@ -32,16 +35,20 @@ export const useAuthStore = defineStore('auth', () => {
     return perfilPromise
   }
 
+  function iniciarSessao(data) {
+    token.value = data.token
+    usuario.value = data.usuario
+    perfilPromise = Promise.resolve()
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('usuario', JSON.stringify(data.usuario))
+  }
+
   async function login(login, senha) {
     loading.value = true
     erro.value = null
     try {
       const { data } = await api.post('/auth/login', { login, senha })
-      token.value = data.token
-      usuario.value = data.usuario
-      perfilPromise = Promise.resolve()
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('usuario', JSON.stringify(data.usuario))
+      iniciarSessao(data)
       return true
     } catch (err) {
       erro.value = err.response?.data?.message || 'Erro ao fazer login'
@@ -51,12 +58,28 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Entrada rápida por PIN (aparelho autorizado)
+  async function loginPin(usuarioId, pin) {
+    loading.value = true
+    erro.value = null
+    try {
+      iniciarSessao(await entrarComPin(usuarioId, pin))
+      return true
+    } catch (err) {
+      erro.value = err.response?.data?.message || 'Erro ao entrar com o PIN'
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
   function logout() {
     token.value = null
     usuario.value = null
+    adminLiberado.value = false
     localStorage.removeItem('token')
     localStorage.removeItem('usuario')
   }
 
-  return { token, usuario, loading, erro, isAutenticado, isAdmin, login, logout, carregarPerfil }
+  return { token, usuario, loading, erro, adminLiberado, isAutenticado, isAdmin, login, loginPin, logout, carregarPerfil }
 })

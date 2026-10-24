@@ -20,6 +20,11 @@ function pgErrorMessage(err) {
       return `Valor fora dos limites permitidos: ${err.constraint || ''}`;
     case '22001':
       return 'Valor muito longo para o campo';
+    case '22P02':
+    case '22003':
+    case '22007':
+    case '22008':
+      return 'Valor inválido';
     default:
       return null;
   }
@@ -34,7 +39,9 @@ function errorHandler(err, req, res, _next) {
   // Erros do PostgreSQL
   const pgMsg = pgErrorMessage(err);
   if (pgMsg) {
-    return res.status(409).json({ message: pgMsg });
+    // 22xxx = dado malformado enviado pelo cliente (400); demais códigos = conflito de integridade (409)
+    const status = err.code?.startsWith('22') && err.code !== '22001' ? 400 : 409;
+    return res.status(status).json({ message: pgMsg });
   }
 
   // Erros de validação do express-validator (chamados via validationResult)

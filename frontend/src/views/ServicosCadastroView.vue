@@ -15,45 +15,14 @@
       </button>
     </div>
 
-    <!-- Filtros -->
-    <div class="mb-4 flex flex-wrap items-center gap-3">
-      <div class="relative">
-        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-black/40">
-          <span class="mdi mdi-magnify text-[16px]"></span>
-        </span>
-        <input
-          v-model="filtroNome"
-          type="text"
-          placeholder="Buscar por nome..."
-          class="h-10 rounded-xl border border-black/10 bg-white pl-8 pr-4 text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10"
-        />
-      </div>
-
-      <select
-        v-model="filtroTipo"
-        class="h-10 rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10"
-      >
-        <option value="">Todos os tipos</option>
-        <option v-for="t in tiposObjeto" :key="t.id" :value="String(t.id)">
-          {{ t.nome }}
-        </option>
-      </select>
-
-      <select
-        v-model="filtroAtivo"
-        class="h-10 rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10"
-      >
-        <option value="">Todos os status</option>
-        <option value="true">Ativo</option>
-        <option value="false">Inativo</option>
-      </select>
-    </div>
-
     <!-- Tabela -->
     <BaseDataTable
       :columns="columns"
-      :rows="servicosFiltrados"
+      :rows="servicos"
       :loading="carregando"
+      compact
+      search-placeholder="Buscar serviço..."
+      :default-sort="{ key: 'nome', dir: 'asc' }"
       empty-text="Nenhum serviço cadastrado."
       actions-label="Ações"
     >
@@ -64,14 +33,15 @@
       <template #tipos="{ row }">
         <div class="flex flex-wrap gap-1">
           <span
-            v-for="tipoId in row.tipo_ids"
-            :key="tipoId"
-            class="inline-flex items-center rounded-lg bg-black/5 px-2.5 py-0.5 text-xs font-medium text-black/70"
+            v-for="t in row.tipos"
+            :key="t.tipo_objeto_id"
+            class="inline-flex items-center gap-1 rounded-lg bg-black/5 px-2.5 py-0.5 text-xs font-medium text-black/70"
           >
-            {{ nomeTipo(tipoId) }}
+            {{ nomeTipo(t.tipo_objeto_id) }}
+            <span v-if="t.valor != null" class="font-semibold text-black">{{ formatarValor(t.valor) }}</span>
           </span>
           <span
-            v-if="!row.tipo_ids || !row.tipo_ids.length"
+            v-if="!row.tipos || !row.tipos.length"
             class="text-xs text-black/35 italic"
           >
             Universal
@@ -117,7 +87,7 @@
           />
         </BaseFormField>
 
-        <BaseFormField label="Valor (R$)" :error="errosForm.valor">
+        <BaseFormField label="Valor padrão (R$)" :error="errosForm.valor">
           <input
             v-model="valorStr"
             type="text"
@@ -139,27 +109,42 @@
           ></textarea>
         </BaseFormField>
 
-        <!-- Tipos de objeto (multiselect checkboxes) -->
-        <BaseFormField label="Tipos de objeto vinculados">
+        <!-- Tipos de objeto, cada um com seu preço -->
+        <BaseFormField label="Tipos de objeto e preços">
           <p class="mb-2 text-xs text-black/50">
-            Deixe em branco para que o serviço apareça em todos os tipos (universal).
+            Marque os tipos e, se o preço for diferente, informe o valor de cada um. Sem valor, vale o padrão.
+            Deixe tudo desmarcado para o serviço aparecer em todos os tipos (universal).
           </p>
           <div
-            class="max-h-40 overflow-y-auto rounded-xl border border-black/10 bg-white p-3 space-y-2"
+            class="max-h-64 overflow-y-auto rounded-xl border border-black/10 bg-white p-2 space-y-1"
           >
-            <label
+            <div
               v-for="tipo in tiposObjeto"
               :key="tipo.id"
-              class="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-black/[0.03]"
+              class="flex items-center gap-2 rounded-lg px-2 py-1 transition hover:bg-black/[0.03]"
             >
-              <input
-                type="checkbox"
-                :value="tipo.id"
-                v-model="form.tipo_ids"
-                class="h-4 w-4 rounded border-black/20 accent-black"
-              />
-              <span class="text-sm text-black">{{ tipo.nome }}</span>
-            </label>
+              <label class="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  :value="tipo.id"
+                  v-model="form.tipo_ids"
+                  class="h-4 w-4 shrink-0 rounded border-black/20 accent-black"
+                />
+                <span class="truncate text-sm text-black">{{ tipo.nome }}</span>
+              </label>
+              <div v-if="form.tipo_ids.includes(tipo.id)" class="relative w-28 shrink-0">
+                <span class="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-xs text-black/40">R$</span>
+                <input
+                  :value="precosTipo[tipo.id] ?? ''"
+                  type="text"
+                  inputmode="numeric"
+                  :placeholder="valorStr || 'padrão'"
+                  :aria-label="`Preço para ${tipo.nome}`"
+                  class="h-8 w-full rounded-lg border border-black/10 bg-white pl-7 pr-2 text-right text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10"
+                  @input="aoDigitarPrecoTipo(tipo.id, $event)"
+                />
+              </div>
+            </div>
             <p v-if="!tiposObjeto.length" class="text-sm text-black/40 italic">
               Nenhum tipo cadastrado.
             </p>
@@ -255,11 +240,6 @@ const carregando   = ref(false)
 const salvando     = ref(false)
 const erroGeral    = ref('')
 
-// filtros
-const filtroNome  = ref('')
-const filtroTipo  = ref('')
-const filtroAtivo = ref('')
-
 // modais
 const modalAberto      = ref(false)
 const modalDeletarAberto = ref(false)
@@ -271,13 +251,21 @@ const formInicial = () => ({ id: null, nome: '', valor: 0, descricao: '', ativo:
 const form       = ref(formInicial())
 const errosForm  = ref({ nome: '', valor: '' })
 const valorStr   = ref('')
+const precosTipo = ref({}) // { [tipoId]: '30,00' } (vazio = usa o valor padrão)
 
 // ─── Colunas da tabela ──────────────────────────────────────────────────────
 const columns = [
   { key: 'nome',  label: 'Nome',             cellClass: 'font-medium text-black' },
-  { key: 'valor', label: 'Valor',            slot: 'valor', cellClass: 'text-black/75' },
-  { key: 'tipos', label: 'Tipos de objeto',  slot: 'tipos', nowrap: false },
-  { key: 'ativo', label: 'Status',           slot: 'ativo' },
+  { key: 'valor', label: 'Valor padrão',  slot: 'valor', cellClass: 'text-black/75', filter: false },
+  {
+    key: 'tipos', label: 'Tipos de objeto',  slot: 'tipos', nowrap: false, sortable: false,
+    filterValue: (r) => (r.tipo_ids?.length ? r.tipo_ids.map(nomeTipo).join(' ') : 'Universal'),
+  },
+  {
+    key: 'ativo', label: 'Status',           slot: 'ativo',
+    filterOptions: [{ value: 'Ativo', label: 'Ativo' }, { value: 'Inativo', label: 'Inativo' }],
+    filterValue: (r) => (r.ativo ? 'Ativo' : 'Inativo'),
+  },
 ]
 
 // ─── Carregamento ───────────────────────────────────────────────────────────
@@ -294,23 +282,6 @@ async function carregar() {
 
 onMounted(carregar)
 
-// ─── Computed filtros ───────────────────────────────────────────────────────
-const servicosFiltrados = computed(() => {
-  return servicos.value.filter(s => {
-    if (filtroNome.value && !s.nome.toLowerCase().includes(filtroNome.value.toLowerCase())) {
-      return false
-    }
-    if (filtroTipo.value) {
-      const tipoId = Number(filtroTipo.value)
-      if (!s.tipo_ids || !s.tipo_ids.includes(tipoId)) return false
-    }
-    if (filtroAtivo.value !== '') {
-      const esperado = filtroAtivo.value === 'true'
-      if (s.ativo !== esperado) return false
-    }
-    return true
-  })
-})
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function nomeTipo(tipoId) {
@@ -355,10 +326,18 @@ function aoBlurValor() {
   valorStr.value = mascaraMonetaria(String(Math.round(n * 100)))
 }
 
-// ─── Modal criar / editar ────────────────────────────────────────────────────
+function aoDigitarPrecoTipo(tipoId, e) {
+  const digits = e.target.value.replace(/\D/g, '')
+  const mascara = digits ? mascaraMonetaria(digits) : ''
+  precosTipo.value[tipoId] = mascara === '0,00' ? '' : mascara
+  e.target.value = precosTipo.value[tipoId]
+}
+
+// ─── Modal criar / editar ────────────────────────────────────────────────────────
 function abrirModalCriar() {
   modoEdicao.value = false
   form.value = formInicial()
+  precosTipo.value = {}
   errosForm.value = { nome: '', valor: '' }
   erroGeral.value = ''
   valorStr.value = ''
@@ -375,6 +354,11 @@ function abrirModalEditar(servico) {
     ativo:    servico.ativo,
     tipo_ids: [...(servico.tipo_ids || [])],
   }
+  precosTipo.value = Object.fromEntries(
+    (servico.tipos || [])
+      .filter((t) => t.valor != null)
+      .map((t) => [t.tipo_objeto_id, mascaraMonetaria(String(Math.round(Number(t.valor) * 100)))])
+  )
   errosForm.value = { nome: '', valor: '' }
   erroGeral.value = ''
   const cents = Math.round((Number(servico.valor) || 0) * 100)
@@ -410,7 +394,10 @@ async function salvar() {
       valor:     form.value.valor,
       descricao: form.value.descricao.trim() || null,
       ativo:     form.value.ativo,
-      tipo_ids:  form.value.tipo_ids,
+      tipos:     form.value.tipo_ids.map((id) => ({
+        tipo_objeto_id: id,
+        valor: parseMoeda(precosTipo.value[id]) || null,
+      })),
     }
     if (modoEdicao.value) {
       await atualizarServico(form.value.id, payload)

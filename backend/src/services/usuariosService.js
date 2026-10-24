@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const AppError = require('../utils/AppError');
 const usuariosRepository = require('../repositories/usuariosRepository');
+const { tamanhoPin, pinValido, gerarHash } = require('../utils/pin');
 
 const SALT_ROUNDS = 12;
 
@@ -14,9 +16,25 @@ async function buscarPorId(id) {
   return usuario;
 }
 
-async function criar({ nome, login, senha, ativo = true, perfil = 'EDITOR' }) {
-  const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
-  return usuariosRepository.criar({ nome, login, senhaHash, ativo, perfil });
+/*
+ * A senha é opcional quando o usuário entra só por PIN (perfil EDITOR). Nesse caso grava-se um hash de uma
+ * senha aleatória descartada: o login com senha fica impossível até o administrador definir uma senha.
+ */
+async function criar({ nome, login, senha, pin, ativo = true, perfil = 'EDITOR' }) {
+  const pinHash = pin ? await gerarPinOuFalhar(pin) : null;
+  if (!senha) {
+    if (!pinHash) throw AppError.badRequest('Informe uma senha ou um PIN');
+    if (perfil === 'ADMIN') throw AppError.badRequest('Administrador precisa de senha');
+  }
+  const senhaHash = await bcrypt.hash(senha || crypto.randomBytes(32).toString('hex'), SALT_ROUNDS);
+  const criado = await usuariosRepository.criar({ nome, login, senhaHash, ativo, perfil });
+  if (pinHash) await usuariosRepository.atualizarPin(criado.id, pinHash);
+  return criado;
+}
+
+async function gerarPinOuFalhar(pin) {
+  if (!pinValido(pin)) throw AppError.badRequest(`O PIN deve ter ${tamanhoPin()} dígitos`);
+  return gerarHash(pin);
 }
 
 // Redefinição de senha pelo administrador (senha opcional)
@@ -49,4 +67,16 @@ async function trocarSenha(id, senhaAtual, novaSenha) {
   await usuariosRepository.atualizarSenha(id, senhaHash);
 }
 
-module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha };
+// PIN de entrada rápida (definido pelo administrador). Redefinir ou remover também desbloqueia o perfil.
+async function definirPin(id, pin) {
+  if (!pinValido(pin)) throw AppError.badRequest(`O PIN deve ter ${tamanhoPin()} dígitos`);
+  if (!(await usuariosRepository.atualizarPin(id, await gerarHash(pin)))) {
+    throw AppError.notFound('Usuário não encontrado');
+  }
+}
+
+async function removerPin(id) {
+  if (!(await usuariosRepository.atualizarPin(id, null))) throw AppError.notFound('Usuário não encontrado');
+}
+
+module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha, definirPin, removerPin };

@@ -3,7 +3,10 @@ const { body } = require('express-validator');
 const ctrl = require('../controllers/tiposObjetoController');
 const validate = require('../middlewares/validate');
 
+const { validarIdParam } = require('../middlewares/validate');
+
 const router = Router();
+router.param('id', validarIdParam);
 
 /**
  * @openapi

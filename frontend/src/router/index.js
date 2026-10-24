@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { pedirPinAdmin } from '@/composables/usePinAdmin'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -60,7 +61,7 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   const auth = useAuthStore()
 
   if (!to.meta.publica && !auth.isAutenticado) {
@@ -76,7 +77,22 @@ router.beforeEach(async (to) => {
     if (!auth.isAdmin) return { name: 'home' }
   }
 
+  // Administração pede o PIN a cada entrada (quem ainda não tem PIN entra direto, senão não conseguiria defini-lo)
+  if (to.name === 'administracao' && !auth.adminLiberado) {
+    await auth.carregarPerfil(true)
+    if (auth.usuario?.tem_pin) {
+      const confirmado = await pedirPinAdmin()
+      if (!confirmado) return from.name ? false : { name: 'home' }
+    }
+    auth.adminLiberado = true
+  }
+
   return true
+})
+
+// Ao sair da Administração, a próxima entrada pede o PIN de novo
+router.afterEach((to) => {
+  if (to.name !== 'administracao') useAuthStore().adminLiberado = false
 })
 
 export default router

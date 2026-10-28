@@ -2,9 +2,13 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const AppError = require('../utils/AppError');
 const usuariosRepository = require('../repositories/usuariosRepository');
+const storage = require('./storageService');
+const imagemService = require('./imagemService');
 const { tamanhoPin, pinValido, gerarHash } = require('../utils/pin');
 
 const SALT_ROUNDS = 12;
+const PASTA_FOTOS = 'usuarios';
+const LADO_FOTO_PERFIL = 512;
 
 async function listar() {
   return usuariosRepository.listar();
@@ -79,4 +83,27 @@ async function removerPin(id) {
   if (!(await usuariosRepository.atualizarPin(id, null))) throw AppError.notFound('Usuário não encontrado');
 }
 
-module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha, definirPin, removerPin };
+async function trocarFoto(id, arquivo) {
+  if (!arquivo) throw AppError.badRequest('Envie a foto do usuário');
+  const { foto_url: anterior } = await buscarPorId(id);
+
+  const imagem = await imagemService.normalizar(arquivo.buffer, { ladoMaximo: LADO_FOTO_PERFIL });
+  const url = await storage.salvar(imagem, arquivo.mimetype, PASTA_FOTOS);
+  try {
+    const atualizado = await usuariosRepository.atualizarFoto(id, url);
+    await storage.remover(anterior);
+    return atualizado;
+  } catch (err) {
+    await storage.remover(url);
+    throw err;
+  }
+}
+
+async function removerFoto(id) {
+  const { foto_url: anterior } = await buscarPorId(id);
+  const atualizado = await usuariosRepository.atualizarFoto(id, null);
+  await storage.remover(anterior);
+  return atualizado;
+}
+
+module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha, definirPin, removerPin, trocarFoto, removerFoto };

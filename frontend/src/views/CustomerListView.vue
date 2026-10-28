@@ -33,7 +33,7 @@
       @row-click="abrirModalEditar"
     >
       <template #nome="{ value }">
-        <span class="font-medium text-black">{{ value }}</span>
+        <span class="block max-w-[24vw] truncate font-medium text-black sm:max-w-none" :title="value">{{ value }}</span>
       </template>
 
       <template #cpf="{ value }">
@@ -41,7 +41,7 @@
       </template>
 
       <template #telefone="{ value }">
-        {{ formatarTelefone(value) || '—' }}
+        <span class="whitespace-nowrap">{{ formatarTelefone(value) || '—' }}</span>
       </template>
 
       <template #informacao_adicional="{ value }">
@@ -49,10 +49,13 @@
       </template>
 
       <template #actions="{ row }">
-        <div class="flex items-center justify-end gap-1.5">
+        <div class="flex items-center justify-end gap-1 sm:gap-1.5">
           <BaseIconButton icon="mdi-history" title="Histórico de peças e fotos" @click="abrirHistorico(row)" />
           <BaseIconButton icon="mdi-file-document-plus-outline" title="Nova O.S. para este cliente" @click="novaOs(row)" />
-          <BaseIconButton icon="mdi-pencil" title="Editar cliente" @click="abrirModalEditar(row)" />
+          <!-- no celular, tocar na linha já abre a edição -->
+          <span class="hidden sm:contents">
+            <BaseIconButton icon="mdi-pencil" title="Editar cliente" @click="abrirModalEditar(row)" />
+          </span>
           <BaseIconButton icon="mdi-trash-can-outline" title="Excluir cliente" variant="danger" @click="confirmarDeletar(row)" />
         </div>
       </template>

@@ -1,6 +1,7 @@
 const AppError = require('../utils/AppError');
 const ordensServicoRepository = require('../repositories/ordensServicoRepository');
 const storage = require('./storageService');
+const imagemService = require('./imagemService');
 const { dataIso } = require('../utils/datas');
 
 const ESTADOS_VALIDOS = ['ENTRADA', 'ORCAMENTO', 'AUTORIZADO', 'EM_ANDAMENTO', 'CONCLUIDO', 'ENTREGUE', 'CANCELADO'];
@@ -322,7 +323,7 @@ async function adicionarFotos(ordemId, arquivos = [], itemId = null, etapa = 'EN
   const urlsSalvas = [];
   try {
     for (const arquivo of arquivos) {
-      const url = await storage.salvar(arquivo.buffer, arquivo.mimetype);
+      const url = await storage.salvar(await imagemService.normalizar(arquivo.buffer), arquivo.mimetype);
       urlsSalvas.push(url);
       fotos.push(await ordensServicoRepository.inserirFoto({ ordem_id: ordemId, item_id: itemId, url, etapa: etapaUpper }));
     }

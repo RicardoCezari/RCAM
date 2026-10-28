@@ -24,8 +24,11 @@
       compact
     >
       <template #nome="{ row }">
-        <span class="whitespace-nowrap font-medium text-black">{{ row.nome }}</span>
-        <span v-if="row.id === auth.usuario?.id" class="ml-1.5 text-xs text-black/40">(você)</span>
+        <span class="inline-flex items-center gap-2.5">
+          <BaseAvatar :nome="row.nome" :src="row.foto_url" class="h-7 w-7 rounded-full bg-black/10 text-[10px] font-semibold text-black/70" />
+          <span class="whitespace-nowrap font-medium text-black">{{ row.nome }}</span>
+          <span v-if="row.id === auth.usuario?.id" class="text-xs text-black/40">(você)</span>
+        </span>
       </template>
 
       <template #login="{ value }">
@@ -80,6 +83,43 @@
       :icon="modoEdicao ? 'mdi-account-edit-outline' : 'mdi-account-plus-outline'"
     >
       <form class="space-y-4 px-6 py-5" @submit.prevent="salvar">
+        <BaseFormField label="Foto" optional>
+          <div class="flex items-center gap-4">
+            <BaseAvatar
+              :nome="form.nome"
+              :src="foto.src.value"
+              class="h-16 w-16 rounded-full bg-black/10 text-xl font-semibold text-black/60"
+              data-testid="foto-previa"
+            />
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="flex items-center gap-1.5 rounded-xl border border-black/10 px-3 py-2 text-sm font-medium text-black/70 transition hover:bg-black/5"
+                @click="inputFoto.click()"
+              >
+                <span class="mdi mdi-camera-outline text-[16px]"></span>
+                {{ foto.src.value ? 'Trocar foto' : 'Enviar foto' }}
+              </button>
+              <button
+                v-if="foto.src.value"
+                type="button"
+                class="rounded-xl px-3 py-2 text-sm font-medium text-black/55 transition hover:bg-black/5"
+                @click="foto.remover"
+              >
+                Remover
+              </button>
+              <input
+                ref="inputFoto"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+                data-testid="campo-foto"
+                @change="aoEscolherFoto"
+              />
+            </div>
+          </div>
+        </BaseFormField>
+
         <BaseFormField label="Nome" required :error="erros.nome">
           <input
             v-model="form.nome"
@@ -213,8 +253,11 @@ import BaseModal from '@/components/base/BaseModal.vue'
 import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
 import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import BaseAvatar from '@/components/base/BaseAvatar.vue'
 import { listarUsuarios, criarUsuario, atualizarUsuario } from '@/services/usuarios'
 import { definirPin, removerPin } from '@/services/dispositivo'
+import { useFotoPerfil } from '@/composables/useFotoPerfil'
+import { mensagemDoErro } from '@/utils/imagem'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { useToastStore } from '@/stores/toast'
@@ -255,6 +298,9 @@ const formInicial = () => ({ id: null, nome: '', login: '', senha: '', pin: '', 
 const form = ref(formInicial())
 const erros = ref({ nome: '', login: '', senha: '', pin: '' })
 
+const foto = useFotoPerfil()
+const inputFoto = ref(null)
+
 // Editor pode ser criado sem senha (entra só por PIN); administrador sempre precisa de senha
 const senhaOpcional = computed(() => modoEdicao.value || form.value.perfil === 'EDITOR')
 
@@ -273,6 +319,7 @@ async function carregar() {
 function abrirCriar() {
   modoEdicao.value = false
   form.value = formInicial()
+  foto.iniciar()
   erros.value = { nome: '', login: '', senha: '', pin: '' }
   erroGeral.value = ''
   modalAberto.value = true
@@ -281,6 +328,7 @@ function abrirCriar() {
 function abrirEditar(usuario) {
   modoEdicao.value = true
   form.value = { ...formInicial(), ...usuario, senha: '', pin: '' }
+  foto.iniciar(usuario.foto_url)
   erros.value = { nome: '', login: '', senha: '', pin: '' }
   erroGeral.value = ''
   modalAberto.value = true
@@ -314,6 +362,27 @@ async function removerPinAtual() {
   }
 }
 
+async function aoEscolherFoto(event) {
+  const arquivo = event.target.files?.[0]
+  event.target.value = ''
+  if (!arquivo) return
+  try {
+    await foto.escolher(arquivo)
+  } catch (err) {
+    toast.erro(mensagemDoErro(err))
+  }
+}
+
+// O usuário já está salvo neste ponto: falha na foto avisa, mas não desfaz o cadastro
+async function salvarFoto(id) {
+  try {
+    await foto.aplicar(id)
+  } catch (err) {
+    const motivo = err.response?.data?.message || 'tente novamente'
+    toast.erro(`Usuário salvo, mas a foto não foi atualizada: ${motivo}`)
+  }
+}
+
 async function salvar() {
   if (!validar()) return
   salvando.value = true
@@ -328,14 +397,16 @@ async function salvar() {
   if (!modoEdicao.value && form.value.pin) payload.pin = form.value.pin
 
   try {
+    let usuarioId = form.value.id
     if (modoEdicao.value) {
       payload.ativo = form.value.ativo
-      await atualizarUsuario(form.value.id, payload)
-      if (form.value.id === auth.usuario?.id) await auth.carregarPerfil(true)
-      if (form.value.pin) await definirPin(form.value.id, form.value.pin)
+      await atualizarUsuario(usuarioId, payload)
+      if (form.value.pin) await definirPin(usuarioId, form.value.pin)
     } else {
-      await criarUsuario(payload)
+      usuarioId = (await criarUsuario(payload)).id
     }
+    await salvarFoto(usuarioId)
+    if (usuarioId === auth.usuario?.id) await auth.carregarPerfil(true)
     modalAberto.value = false
     toast.sucesso(modoEdicao.value ? 'Usuário atualizado.' : 'Usuário criado.')
     await carregar()

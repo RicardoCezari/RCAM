@@ -31,7 +31,8 @@ if (!/_test$/.test(BANCO)) {
     const clientes = await pool.query("DELETE FROM clientes WHERE nome LIKE 'ZZE2E%'");
     const servicos = await pool.query("DELETE FROM servicos WHERE nome LIKE 'ZZE2E%'");
     const tipos = await pool.query("DELETE FROM tipos_objeto WHERE nome LIKE 'ZZE2E%'");
-    console.log(`[E2E-LIMPAR] ${BANCO}: ${os.rowCount} O.S., ${clientes.rowCount} clientes, ${servicos.rowCount} serviços, ${tipos.rowCount} tipos removidos.`);
+    const usuarios = await pool.query("DELETE FROM usuarios WHERE login LIKE 'ZZE2E%'");
+    console.log(`[E2E-LIMPAR] ${BANCO}: ${os.rowCount} O.S., ${clientes.rowCount} clientes, ${servicos.rowCount} serviços, ${tipos.rowCount} tipos, ${usuarios.rowCount} usuários removidos.`);
   } finally {
     await pool.end();
   }

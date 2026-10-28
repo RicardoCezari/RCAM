@@ -249,12 +249,12 @@
                     f.status === 'erro' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50',
                   ]"
                 >
-                  <img v-if="f.status === 'ok'" :src="f.url" :alt="f.name" class="h-full w-full object-cover" />
-                  <div v-else-if="f.status === 'carregando'" class="flex h-full w-full items-center justify-center text-slate-400">
+                  <img v-if="f.url" :src="f.url" :alt="f.name" :class="['h-full w-full object-cover', f.status === 'erro' ? 'opacity-60' : '']" />
+                  <div v-if="f.status === 'carregando'" class="flex h-full w-full items-center justify-center text-slate-400">
                     <span class="mdi mdi-loading animate-spin text-[24px]"></span>
                   </div>
-                  <div v-else class="flex h-full w-full flex-col items-center justify-center gap-0.5 text-red-500">
-                    <span class="mdi mdi-close-circle text-[26px]"></span>
+                  <div v-else-if="f.status === 'erro'" class="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-500/20 text-red-600" :title="f.erro">
+                    <span class="mdi mdi-alert-circle text-[26px]"></span>
                     <span class="text-[10px] font-semibold leading-none">Não carregou</span>
                   </div>
                   <button
@@ -282,7 +282,7 @@
                 >
                   <span class="mdi mdi-image-multiple-outline text-[22px]"></span>
                   <span class="text-[10px] font-medium">Galeria</span>
-                  <input type="file" accept="image/*" multiple class="sr-only" @change="aoEscolherFotoGeral" />
+                  <input type="file" accept="image/*" multiple class="sr-only" data-testid="galeria-geral" @click="marcarFotoPendente('geral')" @change="aoEscolherFotoGeral" />
                 </label>
               </div>
 
@@ -291,8 +291,8 @@
                 class="mt-3 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-xs"
                 :class="fotosGerais.some(f => f.status === 'erro') ? 'bg-red-50' : 'bg-slate-50'"
               >
-                <span v-if="fotosGerais.some(f => f.status === 'erro')" class="font-medium text-red-700">
-                  Uma foto não carregou. Tire novamente.
+                <span v-if="fotosGerais.some(f => f.status === 'erro')" class="font-medium text-red-700" data-testid="motivo-foto">
+                  <strong>Foto em vermelho:</strong> {{ motivoDaFalha(fotosGerais) }}
                 </span>
                 <span v-else class="font-medium text-slate-700">Foto adicionada. Tirar mais uma ou {{ editandoOs ? 'salvar' : 'criar a O.S.' }}?</span>
                 <button
@@ -404,53 +404,37 @@
             <!-- Seção de impressão -->
             <p class="anim-subir mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400" style="animation-delay:.16s">Impressão das vias</p>
 
-            <div class="anim-subir grid grid-cols-2 gap-2 sm:grid-cols-1 sm:gap-3" style="animation-delay:.16s">
-              <!-- Via do Cliente -->
-              <div class="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-start sm:gap-4 sm:p-4">
-                <div class="flex items-center gap-2 sm:contents">
-                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 sm:h-10 sm:w-10">
-                    <span class="mdi mdi-account-outline text-[20px] text-slate-600 sm:text-[22px]"></span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-slate-900 sm:text-base">Via do cliente</p>
-                    <p class="mt-0.5 hidden text-xs text-slate-500 sm:block">Nome, telefone, número da O.S. e data de entrega. Sem detalhes internos.</p>
-                  </div>
-                </div>
+            <div :class="['anim-subir relative mt-2 sm:mt-3', menuImpressaoAberto ? 'z-50' : '']" style="animation-delay:.16s" @keydown.esc="menuImpressaoAberto = false">
+              <div class="flex overflow-hidden rounded-xl bg-black text-white shadow-sm">
                 <button type="button"
-                  class="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto sm:py-2.5"
-                  @click="imprimirVia('cliente')">
-                  <span class="mdi mdi-printer-outline text-[16px]"></span>
-                  Imprimir
+                  class="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold transition hover:bg-black/80 sm:py-3.5"
+                  @click="imprimirVia('ambas')">
+                  <span class="mdi mdi-printer-pos-outline text-[19px]"></span>
+                  <span>Imprimir as duas vias juntas</span>
                 </button>
-              </div>
-
-              <!-- Via da Loja -->
-              <div class="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-start sm:gap-4 sm:p-4">
-                <div class="flex items-center gap-2 sm:contents">
-                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black sm:h-10 sm:w-10">
-                    <span class="mdi mdi-store-outline text-[20px] text-white sm:text-[22px]"></span>
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-semibold text-slate-900 sm:text-base">Via da loja</p>
-                    <p class="mt-0.5 hidden text-xs text-slate-500 sm:block">Completo: serviço, valor, tipo de objeto, quantidade, observações e fotos.</p>
-                  </div>
+                <div class="border-l border-white/25">
+                  <button type="button"
+                    class="flex h-full w-12 items-center justify-center transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+                    aria-label="Escolher via para imprimir"
+                    aria-haspopup="menu"
+                    :aria-expanded="menuImpressaoAberto"
+                    @click="menuImpressaoAberto = !menuImpressaoAberto">
+                    <span class="mdi mdi-printer-outline text-[20px]"></span>
+                  </button>
                 </div>
-                <button type="button"
-                  class="flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85 sm:w-auto sm:py-2.5"
-                  @click="imprimirVia('loja')">
-                  <span class="mdi mdi-printer-outline text-[16px]"></span>
-                  Imprimir
-                </button>
               </div>
+              <template v-if="menuImpressaoAberto">
+                <button type="button" class="fixed inset-0 z-40 cursor-default" aria-label="Fechar opções de impressão" @click="menuImpressaoAberto = false"></button>
+                <div role="menu" class="absolute bottom-full right-0 z-50 mb-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-slate-700 shadow-lg sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1">
+                  <button type="button" role="menuitem" class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-slate-50" @click="selecionarVia('cliente')">
+                    <span class="mdi mdi-account-outline text-base"></span> Via do cliente
+                  </button>
+                  <button type="button" role="menuitem" class="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-slate-50" @click="selecionarVia('loja')">
+                    <span class="mdi mdi-store-outline text-base"></span> Via da loja
+                  </button>
+                </div>
+              </template>
             </div>
-
-            <!-- Botão imprimir ambas juntas -->
-            <button type="button"
-              class="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-2.5 text-sm font-medium text-slate-500 transition hover:border-black hover:text-slate-900 sm:mt-3 sm:py-3"
-              @click="imprimirVia('ambas')">
-              <span class="mdi mdi-printer-pos-outline text-[18px]"></span>
-              Imprimir as duas vias juntas
-            </button>
 
             <!-- Esqueceu algo? -->
             <p class="anim-subir mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400" style="animation-delay:.24s">Esqueceu algo?</p>
@@ -514,7 +498,7 @@ import { useImpressao } from '@/composables/useImpressao'
 import { useRascunhoOs, limparRascunhoOs } from '@/composables/useRascunhoOs'
 import { buscarCliente, criarCliente } from '@/services/clientes'
 import { criarOrdem, buscarOrdem, enviarFotos, atualizarOrdem, adicionarItemOrdem } from '@/services/ordensServico'
-import { adicionarFotosNaLista, liberarFotos } from '@/utils/imagem'
+import { adicionarFotosNaLista, liberarFotos, motivoDaFalha } from '@/utils/imagem'
 import { dataISO, horaCurta } from '@/utils/ordem'
 
 const route = useRoute()
@@ -570,6 +554,7 @@ const osCriada   = ref(null)
 const clienteCriado = ref(null)
 const fotosExtras = ref(0)
 const enviandoFotoExtra = ref(false)
+const menuImpressaoAberto = ref(false)
 const carregandoEdicao = ref(false)
 const inputCameraGeral  = ref(null)
 const promptFotoGeral   = ref(false)
@@ -658,9 +643,14 @@ const resumo = computed(() => {
 // ── ciclo de vida ────────────────────────────────────────────
 onMounted(async () => {
   if (rascunhoRestaurado.restaurado) {
-    toast.sucesso(rascunhoRestaurado.fotoPerdida
-      ? 'Recuperamos o cadastro. A foto não carregou: tire novamente.'
-      : 'Recuperamos o cadastro em andamento.')
+    const fotos = await rascunhoRestaurado.fotosRestauradas
+    if (rascunhoRestaurado.fotoPerdida) {
+      toast.erro('Recuperamos o cadastro, mas o celular recarregou a página ao abrir a câmera e a última foto se perdeu. Tire novamente.')
+    } else {
+      toast.sucesso(fotos
+        ? `Recuperamos o cadastro em andamento e ${fotos === 1 ? '1 foto' : `${fotos} fotos`}.`
+        : 'Recuperamos o cadastro em andamento.')
+    }
     return
   }
   const cid = route.query.cliente_id
@@ -896,6 +886,11 @@ function imprimirVia(tipo) {
     })),
     tipo,
   })
+}
+
+function selecionarVia(tipo) {
+  menuImpressaoAberto.value = false
+  imprimirVia(tipo)
 }
 
 // Foto esquecida: envia direto para a O.S. já criada

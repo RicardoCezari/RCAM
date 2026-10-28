@@ -33,6 +33,9 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pin_hash          VARCHAR(100);
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pin_tentativas    INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pin_bloqueado_ate TIMESTAMPTZ;
 
+-- Foto de perfil (opcional): caminho "/uploads/usuarios/<arquivo>"
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto_url VARCHAR(500);
+
 
 -- -----------------------------------------------------------------------------
 -- Aparelhos autorizados (ex.: o celular compartilhado da loja)

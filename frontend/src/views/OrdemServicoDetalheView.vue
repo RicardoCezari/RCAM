@@ -175,13 +175,14 @@
 
             <!-- A situação vale para o objeto inteiro (todos os serviços dele) -->
             <BaseSegmentedIcons
-              v-if="!somenteLeitura"
+              v-if="!somenteLeitura || grupo.itens.some((i) => i.estado === 'ENTREGUE')"
               class="px-3 pb-1 pt-2"
               small
               :model-value="estadoGrupo(grupo)"
               :options="opcoesDoGrupo(grupo)"
               :loading="grupo.itens.some((i) => i.salvando)"
-              :disabled="grupo.itens.some((i) => i.salvando)"
+              :disabled="somenteLeitura || grupo.itens.some((i) => i.salvando || i.estado === 'ENTREGUE')"
+              :class="grupo.itens.every((i) => i.estado === 'ENTREGUE') ? 'opacity-70' : ''"
               @update:model-value="(estado) => definirEstadoGrupo(grupo, estado)"
             />
 
@@ -207,11 +208,11 @@
                 </div>
 
                 <div v-if="!somenteLeitura" class="mt-1.5 flex items-center gap-2">
-                  <div class="flex h-8 shrink-0 items-center rounded-lg border border-black/10 bg-white">
+                  <div :class="['flex h-8 shrink-0 items-center rounded-lg border border-black/10 bg-white', item.estado === 'ENTREGUE' ? 'opacity-40' : '']">
                     <button
                       type="button"
                       class="flex h-8 w-7 items-center justify-center text-black/60 transition hover:text-black disabled:opacity-30"
-                      :disabled="item.quantidade <= 1"
+                      :disabled="item.quantidade <= 1 || item.estado === 'ENTREGUE'"
                       aria-label="Diminuir quantidade"
                       @click="item.quantidade--"
                     >
@@ -221,7 +222,7 @@
                     <button
                       type="button"
                       class="flex h-8 w-7 items-center justify-center text-black/60 transition hover:text-black disabled:opacity-30"
-                      :disabled="item.quantidade >= 99"
+                      :disabled="item.quantidade >= 99 || item.estado === 'ENTREGUE'"
                       aria-label="Aumentar quantidade"
                       @click="item.quantidade++"
                     >
@@ -238,6 +239,8 @@
                       placeholder="0,00"
                       aria-label="Valor unitário"
                       class="h-8 w-full rounded-lg border border-black/10 bg-white pl-7 pr-2.5 text-right text-sm outline-none transition focus:border-black/30 focus:ring-2 focus:ring-black/10"
+                      :readonly="item.estado === 'ENTREGUE'"
+                      :class="item.estado === 'ENTREGUE' ? 'cursor-not-allowed opacity-40' : ''"
                       @input="aoDigitarValor(item, $event)"
                     />
                   </div>
@@ -610,7 +613,7 @@ import { formatarTelefone } from '@/composables/useClienteForm'
 import { formatarMoeda, mascaraMonetaria, numeroParaMascara, parseMoeda } from '@/composables/useItens'
 import { ESTADOS_ITEM, ESTADOS_OS, OPCOES_ESTADO_ITEM, estadoItemInfo, dataISO, formatarDataBR, horaCurta } from '@/utils/ordem'
 import { fileUrl } from '@/utils/arquivos'
-import { comprimirImagem } from '@/utils/imagem'
+import { prepararFoto, ErroImagem } from '@/utils/imagem'
 import {
   buscarOrdem, atualizarOrdem, atualizarItemOrdem, mudarEstado, enviarFotos, removerFotoOrdem, historicoOrdem,
 } from '@/services/ordensServico'
@@ -888,7 +891,7 @@ async function confirmarEntrega() {
     }
 
     if (entrega.fotos.length) {
-      const arquivos = await Promise.all(entrega.fotos.map((f) => comprimirImagem(f.arquivo)))
+      const arquivos = await Promise.all(entrega.fotos.map((f) => prepararFoto(f.arquivo)))
       await enviarFotos(id, arquivos, grupo?.itens[0].id ?? null, 'ENTREGA')
     }
 
@@ -917,7 +920,9 @@ async function confirmarEntrega() {
     for (const item of entrega.grupo?.itens ?? []) {
       if (item.estado === 'ENTREGUE' && item.original.estado !== 'ENTREGUE') item.estado = item.original.estado
     }
-    entrega.erro = err?.response?.data?.message || 'Não foi possível registrar a entrega.'
+    entrega.erro = err instanceof ErroImagem
+      ? err.message
+      : err?.response?.data?.message || 'Não foi possível registrar a entrega.'
   } finally {
     entrega.salvando = false
   }
@@ -979,12 +984,12 @@ async function enviarNovasFotos(event, itemId = null) {
   enviandoFotos.value = true
   erro.value = ''
   try {
-    const arquivos = await Promise.all(originais.map((f) => comprimirImagem(f)))
+    const arquivos = await Promise.all(originais.map((f) => prepararFoto(f)))
     const novas = await enviarFotos(ordem.value.id, arquivos, itemId, ordem.value.estado === 'ENTREGUE' ? 'ENTREGA' : 'ENTRADA')
     fotos.value.push(...novas)
     toast.sucesso(novas.length > 1 ? `${novas.length} fotos adicionadas.` : 'Foto adicionada.')
   } catch (err) {
-    toast.erro(err?.response?.data?.message || 'Não foi possível enviar a foto.')
+    toast.erro(err instanceof ErroImagem ? err.message : err?.response?.data?.message || 'Não foi possível enviar a foto.')
   } finally {
     enviandoFotos.value = false
   }

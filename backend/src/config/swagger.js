@@ -45,6 +45,7 @@ const options = {
             id: { type: 'integer', example: 4 },
             nome: { type: 'string', example: 'Ricardo' },
             login: { type: 'string', example: 'ricardo' },
+            foto_url: { type: 'string', nullable: true, example: '/uploads/usuarios/3f2a.jpg' },
           },
         },
         Usuario: {

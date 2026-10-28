@@ -93,6 +93,25 @@ export async function semear() {
 
 export { chamar }
 
+export async function escolherDataQualquer(page) {
+  await page.locator('[role=button]:has(.mdi-calendar-month-outline)').first().click()
+  const dia = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).last()
+  await dia.click()
+}
+
+// Chega ao passo das O.S. com cliente novo, tipo, serviço e data já escolhidos
+export async function preencherAssistente(page, { nome, telefone }) {
+  await page.goto('/nova-os')
+  await page.locator('#os-telefone').fill(telefone)
+  await page.locator('#os-nome').fill(nome)
+  await page.getByRole('button', { name: 'Criar O.S.' }).click()
+  await page.locator('select[id^="tipo-"]').selectOption({ label: `${PREFIXO} Relógio` })
+  const selectServico = page.locator('form select:not([id^="tipo-"])').first()
+  const valorServico = await selectServico.locator('option', { hasText: `${PREFIXO} Troca de pilha` }).first().getAttribute('value')
+  await selectServico.selectOption(valorServico)
+  await escolherDataQualquer(page)
+}
+
 // Teste com sessão de administrador já gravada no localStorage antes de a página carregar
 export const test = base.extend({
   page: async ({ page }, use) => {

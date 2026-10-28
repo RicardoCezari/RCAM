@@ -64,4 +64,20 @@ async function removerPin(req, res, next) {
   }
 }
 
-module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha, definirPin, removerPin };
+async function trocarFoto(req, res, next) {
+  try {
+    res.json(await usuariosService.trocarFoto(Number(req.params.id), req.file));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function removerFoto(req, res, next) {
+  try {
+    res.json(await usuariosService.removerFoto(Number(req.params.id)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listar, buscarPorId, criar, atualizar, trocarSenha, definirPin, removerPin, trocarFoto, removerFoto };

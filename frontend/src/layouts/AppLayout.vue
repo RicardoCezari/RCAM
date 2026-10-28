@@ -106,9 +106,11 @@
               class="group flex items-center gap-2.5 rounded-xl px-2 py-1"
               @click="toggleUserMenu"
             >
-              <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-xs font-semibold text-black ring-1 ring-white/70 transition duration-200 group-hover:scale-[1.03]">
-                {{ iniciais }}
-              </div>
+              <BaseAvatar
+                :nome="nomeUsuario"
+                :src="authStore.usuario?.foto_url"
+                class="h-8 w-8 rounded-lg bg-white text-xs font-semibold text-black ring-1 ring-white/70 transition duration-200 group-hover:scale-[1.03]"
+              />
               <div class="hidden lg:block">
                 <p class="text-sm font-medium leading-none">{{ nomeUsuario }}</p>
               </div>
@@ -136,6 +138,14 @@
               </div>
             </transition>
           </div>
+
+          <!-- mobile: foto ao lado do menu -->
+          <BaseAvatar
+            :nome="nomeUsuario"
+            :src="authStore.usuario?.foto_url"
+            class="h-9 w-9 rounded-xl bg-white text-xs font-semibold text-black ring-1 ring-white/70 lg:hidden"
+            data-testid="avatar-mobile"
+          />
 
           <!-- mobile button -->
           <button
@@ -250,6 +260,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
+import BaseAvatar from '@/components/base/BaseAvatar.vue'
 
 defineProps({
   fullHeight: { type: Boolean, default: false },
@@ -287,7 +298,6 @@ function handleLogout() {
   router.push({ name: 'login' })
 }
 
-const iniciais   = computed(() => (authStore.usuario?.nome || '').slice(0, 2).toUpperCase() || '?')
 const nomeUsuario = computed(() => authStore.usuario?.nome || '')
 </script>
 

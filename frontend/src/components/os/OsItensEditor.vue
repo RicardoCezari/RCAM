@@ -65,12 +65,12 @@
               f.status === 'erro' ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50',
             ]"
           >
-            <img v-if="f.status === 'ok'" :src="f.url" :alt="f.name" class="h-full w-full object-cover" />
-            <div v-else-if="f.status === 'carregando'" class="flex h-full w-full items-center justify-center text-slate-400">
+            <img v-if="f.url" :src="f.url" :alt="f.name" :class="['h-full w-full object-cover', f.status === 'erro' ? 'opacity-60' : '']" />
+            <div v-if="f.status === 'carregando'" class="flex h-full w-full items-center justify-center text-slate-400">
               <span class="mdi mdi-loading animate-spin text-[20px]"></span>
             </div>
-            <div v-else class="flex h-full w-full flex-col items-center justify-center gap-0.5 text-red-500">
-              <span class="mdi mdi-close-circle text-[22px]"></span>
+            <div v-else-if="f.status === 'erro'" class="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-500/20 text-red-600" :title="f.erro">
+              <span class="mdi mdi-alert-circle text-[22px]"></span>
               <span class="text-[9px] font-semibold leading-none">Falhou</span>
             </div>
             <button
@@ -89,7 +89,7 @@
           v-if="temErro(obj)"
           class="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs"
         >
-          <span class="font-medium text-red-700">Uma foto não carregou. Tire novamente.</span>
+          <span class="font-medium text-red-700" data-testid="motivo-foto"><strong>Foto em vermelho:</strong> {{ motivoDaFalha(obj.fotos) }}</span>
           <button
             type="button"
             class="flex items-center gap-1 rounded-lg bg-black px-3 py-1.5 font-semibold text-white transition hover:bg-black/85"
@@ -329,6 +329,7 @@
 <script setup>
 import { reactive } from 'vue'
 import { formatarMoeda, valorDoServico } from '@/composables/useItens'
+import { motivoDaFalha } from '@/utils/imagem'
 
 const props = defineProps({
   adicionarFotos: { type: Function, required: true },

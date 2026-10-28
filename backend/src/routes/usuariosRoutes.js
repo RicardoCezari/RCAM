@@ -2,6 +2,7 @@ const { Router } = require('express');
 const { body } = require('express-validator');
 const ctrl = require('../controllers/usuariosController');
 const validate = require('../middlewares/validate');
+const { uploadFotoUsuario } = require('../middlewares/upload');
 
 const { validarIdParam } = require('../middlewares/validate');
 
@@ -239,5 +240,58 @@ router.patch(
  */
 router.put('/:id/pin', [body('pin').isString().withMessage('Informe o PIN'), validate], ctrl.definirPin);
 router.delete('/:id/pin', ctrl.removerPin);
+
+/**
+ * @openapi
+ * /api/usuarios/{id}/foto:
+ *   put:
+ *     tags: [Usuários]
+ *     summary: Define ou troca a foto de perfil (opcional)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [foto]
+ *             properties:
+ *               foto:
+ *                 type: string
+ *                 format: binary
+ *                 description: Imagem JPG, PNG ou WEBP de até 30 MB (reduzida pelo servidor)
+ *     responses:
+ *       200:
+ *         description: Usuário com a nova foto
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Usuario'
+ *       400:
+ *         description: Arquivo ausente ou não é uma imagem válida
+ *   delete:
+ *     tags: [Usuários]
+ *     summary: Remove a foto de perfil
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Usuário sem foto
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Usuario'
+ */
+router.put('/:id/foto', uploadFotoUsuario, ctrl.trocarFoto);
+router.delete('/:id/foto', ctrl.removerFoto);
 
 module.exports = router;

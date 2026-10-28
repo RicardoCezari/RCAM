@@ -3,7 +3,7 @@ const { pool } = require('../config/database');
 async function buscarPorLogin(login) {
   const { rows } = await pool.query(
     // Prefere o login idêntico; só então ignora maiúsculas/minúsculas (há logins antigos duplicados por caixa)
-    `SELECT id, nome, login, senha, ativo, perfil FROM usuarios
+    `SELECT id, nome, login, senha, ativo, perfil, foto_url FROM usuarios
      WHERE LOWER(login) = LOWER($1)
      ORDER BY (login = $1) DESC, ativo DESC, id DESC
      LIMIT 1`,
@@ -14,7 +14,7 @@ async function buscarPorLogin(login) {
 
 async function buscarPorId(id) {
   const { rows } = await pool.query(
-    'SELECT id, nome, login, ativo, perfil, data_criacao, (pin_hash IS NOT NULL) AS tem_pin FROM usuarios WHERE id = $1 LIMIT 1',
+    'SELECT id, nome, login, ativo, perfil, foto_url, data_criacao, (pin_hash IS NOT NULL) AS tem_pin FROM usuarios WHERE id = $1 LIMIT 1',
     [id]
   );
   return rows[0] || null;
@@ -27,7 +27,7 @@ async function buscarComSenhaPorId(id) {
 
 async function listarPerfisComPin() {
   const { rows } = await pool.query(
-    'SELECT id, nome FROM usuarios WHERE ativo = true AND pin_hash IS NOT NULL ORDER BY nome'
+    'SELECT id, nome, foto_url FROM usuarios WHERE ativo = true AND pin_hash IS NOT NULL ORDER BY nome'
   );
   return rows;
 }
@@ -44,7 +44,7 @@ async function reservarTentativaPin(id, maxTentativas, minutosBloqueio) {
        pin_bloqueado_ate = CASE WHEN pin_tentativas + 1 >= $2 THEN NOW() + make_interval(mins => $3) END
      WHERE id = $1 AND ativo = true AND pin_hash IS NOT NULL
        AND (pin_bloqueado_ate IS NULL OR pin_bloqueado_ate <= NOW())
-     RETURNING id, nome, login, senha, perfil, pin_hash,
+     RETURNING id, nome, login, senha, perfil, foto_url, pin_hash,
                (pin_bloqueado_ate IS NOT NULL AND pin_bloqueado_ate > NOW()) AS bloqueou_agora`,
     [id, maxTentativas, minutosBloqueio]
   );

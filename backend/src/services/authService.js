@@ -7,6 +7,8 @@ const authRepository = require('../repositories/authRepository');
 // Hash descartável: mantém o custo do bcrypt igual quando o login não existe, evitando enumeração por tempo de resposta
 const HASH_FALSO = bcrypt.hashSync('senha-inexistente', 12);
 
+const dadosDeSessao = ({ id, nome, login, perfil, foto_url }) => ({ id, nome, login, perfil, foto_url });
+
 async function login(login, senha) {
   const usuario = await authRepository.buscarPorLogin(login);
 
@@ -15,12 +17,7 @@ async function login(login, senha) {
     throw AppError.unauthorized('Credenciais inválidas');
   }
 
-  const token = assinar(usuario);
-
-  return {
-    token,
-    usuario: { id: usuario.id, nome: usuario.nome, login: usuario.login, perfil: usuario.perfil },
-  };
+  return { token: assinar(usuario), usuario: dadosDeSessao(usuario) };
 }
 
 async function me(usuarioId) {
@@ -33,7 +30,7 @@ async function me(usuarioId) {
 const MAX_TENTATIVAS_PIN = 5;
 const BLOQUEIO_PIN_MINUTOS = 15;
 
-// Só id e nome: o login não é exposto na lista
+// Só id, nome e foto: o login não é exposto na lista
 async function perfis() {
   return { pin_tamanho: tamanhoPin(), perfis: await authRepository.listarPerfisComPin() };
 }
@@ -69,10 +66,7 @@ async function validarPin(usuarioId, pin) {
 
 async function loginPorPin(usuarioId, pin) {
   const usuario = await validarPin(usuarioId, pin);
-  return {
-    token: assinar(usuario),
-    usuario: { id: usuario.id, nome: usuario.nome, login: usuario.login, perfil: usuario.perfil },
-  };
+  return { token: assinar(usuario), usuario: dadosDeSessao(usuario) };
 }
 
 // Reconfirmação do PIN de quem já está logado (ex.: entrar na Administração)

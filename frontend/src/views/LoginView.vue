@@ -9,27 +9,33 @@
 
         <div class="relative z-10 flex flex-col items-center justify-center px-12 text-center">
           <h1
-            class="text-6xl font-black tracking-[-0.04em] text-white xl:text-7xl 2xl:text-8xl"
+            :class="['marca-login text-6xl font-black text-white xl:text-7xl 2xl:text-8xl', { 'marca-login-animar': animarMarca }]"
             style="font-family: Inter, ui-sans-serif, system-ui, sans-serif"
+            aria-label="Workflow"
           >
-            Workflow
+            <span class="marca-inicial">W</span><span class="marca-meio">orkflo</span><span class="marca-final"><span class="marca-final-inicial">W</span><span class="marca-final-letra">w</span></span>
           </h1>
 
           <p class="mt-5 max-w-md text-base leading-7 text-white/70 xl:text-lg">
-            Gerencie processos, acompanhe atividades e mantenha o fluxo de trabalho
-            da sua operação de forma mais simples, organizada e eficiente.
+            Transforme sua rotina com uma gestão mais organizada, ágil e eficiente.
+            Seus clientes e serviços sempre sob controle.
           </p>
         </div>
       </section>
 
       <!-- Lado direito -->
       <section
-        class="flex items-center justify-center px-6 py-10 sm:px-8 lg:rounded-l-[40px] lg:bg-[#f5f5f7] lg:px-12 xl:px-20"
+        class="flex min-h-screen flex-col items-center px-6 py-6 sm:px-8 lg:rounded-l-[40px] lg:bg-[#f5f5f7] lg:px-12 xl:px-20"
       >
-        <div class="w-full max-w-sm lg:max-w-md">
+        <div class="my-auto w-full max-w-sm lg:max-w-md">
           <!-- Marca (celular) -->
           <div class="mb-10 text-center lg:hidden">
-            <h1 class="text-4xl font-black tracking-[-0.04em] text-slate-900">Workflow</h1>
+            <h1
+              :class="['marca-login text-4xl font-black text-slate-900', { 'marca-login-animar': animarMarca }]"
+              aria-label="Workflow"
+            >
+              <span class="marca-inicial">W</span><span class="marca-meio">orkflo</span><span class="marca-final"><span class="marca-final-inicial">W</span><span class="marca-final-letra">w</span></span>
+            </h1>
           </div>
 
           <!-- Carregando perfis -->
@@ -48,9 +54,11 @@
                 class="group flex flex-col items-center gap-3 rounded-2xl p-2 outline-none transition active:scale-95"
                 @click="escolher(p)"
               >
-                <span
-                  class="flex h-20 w-20 items-center justify-center rounded-full bg-black text-2xl font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition group-hover:bg-zinc-800 group-focus-visible:ring-4 group-focus-visible:ring-black/20"
-                >{{ iniciaisDe(p.nome) }}</span>
+                <BaseAvatar
+                  :nome="p.nome"
+                  :src="p.foto_url"
+                  class="h-20 w-20 rounded-full bg-black text-2xl font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition group-hover:bg-zinc-800 group-focus-visible:ring-4 group-focus-visible:ring-black/20"
+                />
                 <span class="w-full truncate text-center text-sm font-medium text-slate-700">{{ p.nome }}</span>
               </button>
             </div>
@@ -73,7 +81,11 @@
               <span class="mdi mdi-chevron-left text-xl"></span> Trocar de perfil
             </button>
 
-            <span class="flex h-20 w-20 items-center justify-center rounded-full bg-black text-2xl font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)]">{{ iniciaisDe(perfilEscolhido.nome) }}</span>
+            <BaseAvatar
+              :nome="perfilEscolhido.nome"
+              :src="perfilEscolhido.foto_url"
+              class="h-20 w-20 rounded-full bg-black text-2xl font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)]"
+            />
             <p class="mt-3 text-base font-semibold text-slate-900">{{ perfilEscolhido.nome }}</p>
             <p class="mt-1 text-sm text-slate-500">Digite seu PIN</p>
 
@@ -208,6 +220,9 @@
           </button>
           </template>
         </div>
+        <footer class="w-full max-w-sm pb-1 pt-5 text-center text-[11px] text-slate-400 lg:max-w-md">
+          © 2026 Workflow. Todos os direitos reservados.
+        </footer>
       </section>
     </div>
   </div>
@@ -220,6 +235,7 @@ import { useAuthStore } from '@/stores/auth'
 import { temAparelho, listarPerfis } from '@/services/dispositivo'
 import BaseFormField from '@/components/base/BaseFormField.vue'
 import BaseAlert from '@/components/base/BaseAlert.vue'
+import BaseAvatar from '@/components/base/BaseAvatar.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -233,15 +249,7 @@ const perfis = ref([])
 const pinTamanho = ref(4)
 const perfilEscolhido = ref(null)
 const pin = ref('')
-
-const iniciaisDe = (nome) =>
-  (nome || '?')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0])
-    .join('')
-    .toUpperCase()
+const animarMarca = ref(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 
 async function carregarPerfis() {
   try {
@@ -311,3 +319,93 @@ onMounted(() => {
 })
 onBeforeUnmount(() => window.removeEventListener('keydown', aoTeclar))
 </script>
+
+<style scoped>
+.marca-login {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.marca-meio {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.marca-final {
+  position: relative;
+  display: inline-block;
+}
+
+.marca-final-letra {
+  display: inline-block;
+}
+
+.marca-final-inicial {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.marca-login-animar {
+  animation: piscadinha 520ms ease-in-out 1;
+}
+
+.marca-login-animar .marca-meio {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  animation: revelar-nome 2600ms cubic-bezier(0.2, 0.7, 0.2, 1) 500ms forwards;
+}
+
+.marca-login-animar .marca-final-inicial {
+  display: block;
+  opacity: 1;
+  animation: trocar-w 900ms ease-in 2350ms forwards;
+}
+
+.marca-login-animar .marca-final-letra {
+  opacity: 0;
+  animation: revelar-w 900ms ease-out 2500ms forwards;
+}
+
+@keyframes piscadinha {
+  0%, 100% { opacity: 1; }
+  36% { opacity: 0.45; }
+}
+
+@keyframes revelar-nome {
+  to { max-width: 4em; opacity: 1; }
+}
+
+@keyframes trocar-w {
+  to { opacity: 0; transform: translateX(-0.08em) rotate(-8deg); }
+}
+
+@keyframes revelar-w {
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marca-login-animar,
+  .marca-login-animar .marca-meio,
+  .marca-login-animar .marca-final-inicial,
+  .marca-login-animar .marca-final-letra {
+    animation: none;
+  }
+
+  .marca-login-animar .marca-meio {
+    max-width: 4em;
+    opacity: 1;
+  }
+
+  .marca-login-animar .marca-final-inicial {
+    display: none;
+  }
+
+  .marca-login-animar .marca-final-letra {
+    opacity: 1;
+  }
+}
+</style>

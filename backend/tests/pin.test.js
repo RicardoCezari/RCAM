@@ -72,7 +72,7 @@ test('usuário só aparece nos perfis depois que o administrador define o PIN', 
   assert.equal(depois.dados.pin_tamanho, 4);
   const perfil = depois.dados.perfis.find((p) => p.id === editorId);
   assert.ok(perfil);
-  assert.deepEqual(Object.keys(perfil).sort(), ['id', 'nome']);
+  assert.deepEqual(Object.keys(perfil).sort(), ['foto_url', 'id', 'nome']);
 
   const lista = await t.chamar('GET', '/usuarios', { token: t.tokens.admin });
   assert.equal(lista.dados.find((u) => u.id === editorId).tem_pin, true);

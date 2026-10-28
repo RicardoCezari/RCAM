@@ -36,15 +36,34 @@ export async function adicionarItemOrdem(ordemId, payload) {
 }
 
 const FOTOS_POR_ENVIO = 10
+const BYTES_POR_ENVIO = 15 * 1024 * 1024
+
+// Lotes limitados por quantidade e por tamanho (originais grandes não podem ir todos na mesma requisição)
+function agruparParaEnvio(arquivos) {
+  const lotes = []
+  let lote = []
+  let bytes = 0
+  for (const arquivo of arquivos) {
+    if (lote.length && (lote.length >= FOTOS_POR_ENVIO || bytes + arquivo.size > BYTES_POR_ENVIO)) {
+      lotes.push(lote)
+      lote = []
+      bytes = 0
+    }
+    lote.push(arquivo)
+    bytes += arquivo.size
+  }
+  if (lote.length) lotes.push(lote)
+  return lotes
+}
 
 // Envia fotos da O.S. (itemId opcional vincula as fotos a um objeto/item)
 export async function enviarFotos(ordemId, arquivos, itemId = null, etapa = 'ENTRADA') {
   const enviadas = []
-  for (let i = 0; i < arquivos.length; i += FOTOS_POR_ENVIO) {
+  for (const lote of agruparParaEnvio(arquivos)) {
     const form = new FormData()
     if (itemId) form.append('item_id', itemId)
     form.append('etapa', etapa)
-    arquivos.slice(i, i + FOTOS_POR_ENVIO).forEach((f) => form.append('fotos', f))
+    lote.forEach((f) => form.append('fotos', f))
     const { data } = await api.post(`/ordens/${ordemId}/fotos`, form, { timeout: 120000 })
     enviadas.push(...data)
   }

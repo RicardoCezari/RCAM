@@ -267,6 +267,8 @@ router.post(
     body('itens.*.servico_id').if(body('itens').exists()).isInt({ min: 1 }).withMessage('servico_id inválido'),
     body('itens.*.quantidade').if(body('itens').exists()).optional({ nullable: true }).isInt({ min: 1, max: 10 }).withMessage('quantidade deve ser entre 1 e 10'),
     body('itens.*.valor_unitario').if(body('itens').exists()).optional({ nullable: true }).isFloat({ min: 0 }).withMessage('valor_unitario inválido'),
+    body('itens.*.objeto_indice').if(body('itens').exists()).optional({ nullable: true }).isInt({ min: 1 }).withMessage('objeto_indice inválido'),
+    body('itens.*.observacoes').if(body('itens').exists()).optional({ nullable: true }).isString().isLength({ max: 500 }).withMessage('observacoes deve ter até 500 caracteres'),
     body('estado').optional().isString().withMessage('estado inválido'),
     validate,
   ],
@@ -470,6 +472,8 @@ router.post(
     body('servico_id').isInt({ min: 1 }).withMessage('servico_id inválido'),
     body('quantidade').optional({ nullable: true }).isInt({ min: 1, max: 10 }).withMessage('quantidade deve ser entre 1 e 10'),
     body('valor_unitario').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('valor_unitario inválido'),
+    body('objeto_indice').optional({ nullable: true }).isInt({ min: 1 }).withMessage('objeto_indice inválido'),
+    body('observacoes').optional({ nullable: true }).isString().isLength({ max: 500 }).withMessage('observacoes deve ter até 500 caracteres'),
     validate,
   ],
   ctrl.adicionarItem
@@ -484,6 +488,7 @@ router.put(
     body('eh_orcamento').optional({ nullable: true }).isBoolean().withMessage('eh_orcamento inválido'),
     body('observacoes').optional({ nullable: true }).isString().isLength({ max: 500 }).withMessage('observacoes deve ter até 500 caracteres'),
     body('data_entrega').optional({ values: 'falsy' }).isDate().withMessage('data_entrega inválida (formato: YYYY-MM-DD)'),
+    body('objeto_indice').optional({ nullable: true }).isInt({ min: 1 }).withMessage('objeto_indice inválido'),
     validate,
   ],
   ctrl.atualizarItem

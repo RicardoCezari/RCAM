@@ -135,8 +135,8 @@ async function criar({ cliente_id, usuario_id, estado = 'ENTRADA', data_entrega,
     for (const item of itens) {
       await client.query(
         `INSERT INTO itens_ordem_servico
-           (ordem_id, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           (ordem_id, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url, objeto_indice)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           os.id,
           item.tipo_objeto_id,
@@ -147,6 +147,7 @@ async function criar({ cliente_id, usuario_id, estado = 'ENTRADA', data_entrega,
           item.eh_orcamento ? 'ORCAMENTO' : 'CADASTRADO',
           item.observacoes || null,
           item.foto_url || null,
+          item.objeto_indice || 1,
         ]
       );
     }
@@ -427,18 +428,18 @@ async function atualizarEstado(id, estado, usuarioId = null) {
 }
 
 // Item + recálculo do estado da O.S. na mesma transação: se um passo falhar, nada fica pela metade
-async function inserirItem({ ordem_id, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, observacoes, foto_url }) {
+async function inserirItem({ ordem_id, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, observacoes, foto_url, objeto_indice }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await travarOrdem(client, ordem_id);
     const { rows } = await client.query(
       `INSERT INTO itens_ordem_servico
-         (ordem_id, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (ordem_id, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url, objeto_indice)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [ordem_id, tipo_objeto_id, servico_id, quantidade || 1, valor_unitario || 0,
-        eh_orcamento || false, eh_orcamento ? 'ORCAMENTO' : 'CADASTRADO', observacoes || null, foto_url || null]
+        eh_orcamento || false, eh_orcamento ? 'ORCAMENTO' : 'CADASTRADO', observacoes || null, foto_url || null, objeto_indice || 1]
     );
     await recalcularEstadoOrdem(client, ordem_id);
     await client.query('COMMIT');
@@ -459,7 +460,7 @@ async function buscarItemPorId(itemId, ordemId) {
   return rows[0] || null;
 }
 
-async function atualizarItem(itemId, { quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url, data_entrega, hora_entrega }, usuarioId = null) {
+async function atualizarItem(itemId, { quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url, data_entrega, hora_entrega, objeto_indice }, usuarioId = null) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -499,6 +500,7 @@ async function atualizarItem(itemId, { quantidade, valor_unitario, eh_orcamento,
            foto_url       = $6,
            data_entrega   = $7,
            hora_entrega   = $8,
+           objeto_indice  = COALESCE($13, objeto_indice),
            data_entregue  = CASE WHEN $10::boolean THEN CURRENT_TIMESTAMP
                                  WHEN $11::boolean THEN NULL
                                  ELSE data_entregue END,
@@ -509,7 +511,7 @@ async function atualizarItem(itemId, { quantidade, valor_unitario, eh_orcamento,
        RETURNING *`,
       [quantidade, valor_unitario, ehOrcamento, estado,
         observacoes ?? null, foto_url ?? null, data_entrega ?? null, hora_entrega ?? null, itemId,
-        entregando, Boolean(mudouEstado && estadoAnterior === 'ENTREGUE'), usuarioId]
+        entregando, Boolean(mudouEstado && estadoAnterior === 'ENTREGUE'), usuarioId, objeto_indice ?? null]
     );
 
     if (mudouEstado) {

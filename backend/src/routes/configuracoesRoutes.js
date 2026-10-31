@@ -31,6 +31,28 @@ const responder = (acao) => async (req, res, next) => {
 // Pública: a logo aparece também na tela de login
 router.get('/', responder(() => service.obter()));
 
+// O IP local nao deve aparecer na resposta publica usada pela tela de login.
+router.get('/impressora', [authMiddleware, apenasAdmin], responder(() => service.obterImpressoraRede()));
+
+router.put(
+  '/impressora',
+  [
+    authMiddleware,
+    apenasAdmin,
+    body('tipoConexao').isIn(['ethernet', 'wifi']).withMessage('Selecione cabo de rede ou Wi-Fi'),
+    body('enderecoIp')
+      .optional({ nullable: true })
+      .isString()
+      .isLength({ max: 15 })
+      .custom((valor, { req }) => {
+        service.validarImpressoraRede({ tipoConexao: req.body.tipoConexao, enderecoIp: valor });
+        return true;
+      }),
+    validate,
+  ],
+  responder((req) => service.atualizarImpressoraRede(req.body))
+);
+
 router.put(
   '/',
   [
@@ -45,6 +67,12 @@ router.put(
       .optional({ nullable: true, checkFalsy: true })
       .matches(/^#[0-9a-fA-F]{6}$/)
       .withMessage('Cor inválida. Use o formato #rrggbb'),
+    body('nota_layout')
+      .optional({ nullable: true })
+      .custom((valor) => {
+        service.validarLayoutNota(valor);
+        return true;
+      }),
     validate,
   ],
   responder((req) => service.atualizar(req.body))

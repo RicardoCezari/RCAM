@@ -271,12 +271,12 @@ async function historicoCliente(clienteId) {
 // ──────────────────────────────────────
 // Itens
 // ──────────────────────────────────────
-async function adicionarItem(ordemId, { tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, observacoes, foto_url }) {
+async function adicionarItem(ordemId, { tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, observacoes, foto_url, objeto_indice }) {
   await garantirEditavel(ordemId);
-  return ordensServicoRepository.inserirItem({ ordem_id: ordemId, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, observacoes, foto_url });
+  return ordensServicoRepository.inserirItem({ ordem_id: ordemId, tipo_objeto_id, servico_id, quantidade, valor_unitario, eh_orcamento, observacoes, foto_url, objeto_indice });
 }
 
-async function atualizarItem(ordemId, itemId, { quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url, data_entrega, hora_entrega }, usuarioId = null) {
+async function atualizarItem(ordemId, itemId, { quantidade, valor_unitario, eh_orcamento, estado, observacoes, foto_url, data_entrega, hora_entrega, objeto_indice }, usuarioId = null) {
   await garantirEditavel(ordemId);
   const item = await ordensServicoRepository.buscarItemPorId(itemId, ordemId);
   if (!item) throw AppError.notFound('Item não encontrado nesta ordem');

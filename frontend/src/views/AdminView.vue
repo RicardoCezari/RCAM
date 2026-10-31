@@ -3,7 +3,7 @@
     <div class="mb-3">
       <BasePageTitle
         title="Administração"
-        description="Indicadores, empresa, aparência, usuários, aparelhos e backup."
+        description="Indicadores, empresa, impressão da nota, aparência, usuários, aparelhos e backup."
       />
     </div>
 
@@ -15,6 +15,7 @@
     <AparelhosPanel v-else-if="abaAtiva === 'aparelhos'" />
     <BackupPanel v-else-if="abaAtiva === 'backup'" />
     <AparenciaPanel v-else-if="abaAtiva === 'aparencia'" />
+    <NotaLayoutPanel v-else-if="abaAtiva === 'nota'" />
 
     <div v-else class="max-w-2xl space-y-4 sm:space-y-6">
       <BaseAlert :message="erro" />
@@ -169,6 +170,7 @@ import AparelhosPanel from '@/components/admin/AparelhosPanel.vue'
 import DashboardPanel from '@/components/admin/DashboardPanel.vue'
 import BackupPanel from '@/components/admin/BackupPanel.vue'
 import AparenciaPanel from '@/components/admin/AparenciaPanel.vue'
+import NotaLayoutPanel from '@/components/admin/NotaLayoutPanel.vue'
 import { useConfigStore } from '@/stores/config'
 import { useToastStore } from '@/stores/toast'
 
@@ -178,6 +180,7 @@ const toast = useToastStore()
 const abas = [
   { value: 'dashboard', label: 'Dashboard', icon: 'mdi-chart-box-outline' },
   { value: 'empresa', label: 'Empresa', icon: 'mdi-domain' },
+  { value: 'nota', label: 'Impressão', icon: 'mdi-receipt-text-edit-outline' },
   { value: 'aparencia', label: 'Aparência', icon: 'mdi-palette-outline' },
   { value: 'usuarios', label: 'Usuários', icon: 'mdi-account-group-outline' },
   { value: 'aparelhos', label: 'Aparelhos', icon: 'mdi-cellphone-lock' },

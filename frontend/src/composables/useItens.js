@@ -59,11 +59,13 @@ function novoServico(servico = null) {
 
 function novoObjeto() {
   return {
-    _id:           gerarId(),
+    _id:            gerarId(),
     tipo_objeto_id: '',
-    eh_orcamento:  false,
-    fotos:         [],
-    servicos:      [novoServico()],
+    eh_orcamento:   false,
+    observacoes:    '',
+    mostrarObs:     false,
+    fotos:          [],
+    servicos:       [novoServico()],
   }
 }
 
@@ -100,6 +102,11 @@ export function useItens(tiposObjeto, servicosDisp) {
   // ── objetos ───────────────────────────────────────────────────────────────
   function adicionarObjeto() {
     objetos.value.push(novoObjeto())
+  }
+
+  function toggleObservacao(objetoId) {
+    const obj = objetos.value.find(o => o._id === objetoId)
+    if (obj) obj.mostrarObs = !obj.mostrarObs
   }
 
   function removerObjeto(objetoId) {
@@ -254,13 +261,15 @@ export function useItens(tiposObjeto, servicosDisp) {
 
   // ── serializar para envio ─────────────────────────────────────────────────
   function toItens() {
-    return objetos.value.flatMap(obj =>
-      obj.servicos.map(sv => ({
+    return objetos.value.flatMap((obj, objIdx) =>
+      obj.servicos.map((sv, svIdx) => ({
         tipo_objeto_id: Number(obj.tipo_objeto_id),
         servico_id:     Number(sv.servico_id),
         quantidade:     sv.quantidade,
         valor_unitario: parseMoeda(sv._valorStr) || null,
         eh_orcamento:   obj.eh_orcamento,
+        objeto_indice:  obj.objeto_indice ?? (objIdx + 1),
+        observacoes:    svIdx === 0 ? (obj.observacoes?.trim() || null) : null,
       }))
     )
   }
@@ -281,9 +290,26 @@ export function useItens(tiposObjeto, servicosDisp) {
       const tipoId = String(item.tipo_objeto_id)
       const temFotos = fotos.some(f => f.item_id === item.id)
       let grupo = grupos[grupos.length - 1]
-      if (!grupo || grupo.tipo_objeto_id !== tipoId || temFotos) {
-        grupo = { _id: gerarId(), tipo_objeto_id: tipoId, eh_orcamento: !!item.eh_orcamento, fotos: [], servicos: [] }
+      const novoGrupo = !grupo
+        ? true
+        : item.objeto_indice != null
+          ? grupo.objeto_indice !== item.objeto_indice
+          : (grupo.tipo_objeto_id !== tipoId || temFotos)
+      if (novoGrupo) {
+        grupo = {
+          _id:            gerarId(),
+          objeto_indice:  item.objeto_indice ?? (grupos.length + 1),
+          tipo_objeto_id: tipoId,
+          eh_orcamento:   !!item.eh_orcamento,
+          observacoes:    item.observacoes || '',
+          mostrarObs:     Boolean(item.observacoes?.trim()),
+          fotos:          [],
+          servicos:       [],
+        }
         grupos.push(grupo)
+      } else if (!grupo.observacoes && item.observacoes) {
+        grupo.observacoes = item.observacoes
+        grupo.mostrarObs = true
       }
       const valor = Number(item.valor_unitario) || 0
       grupo.servicos.push({
@@ -304,7 +330,7 @@ export function useItens(tiposObjeto, servicosDisp) {
     objetos, erros, totalGeral, totalObjeto,
     descontoStr, totalFinal,
     nomeTipoObjeto, mudarTipoObjeto, toggleOrcamento,
-    adicionarObjeto, removerObjeto, adicionarFotosObjeto, removerFotoObjeto,
+    adicionarObjeto, removerObjeto, toggleObservacao, adicionarFotosObjeto, removerFotoObjeto,
     adicionarServico, removerServico, mudarQuantidade,
     aoSelecionarServico, aoEditarValor, aoBlurValor,
     aoEditarDesconto, aoBlurDesconto,

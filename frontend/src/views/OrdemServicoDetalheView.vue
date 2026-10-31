@@ -156,9 +156,10 @@
 
           <p v-if="!itens.length" class="px-4 py-8 text-center text-sm text-black/50">Esta O.S. não possui itens.</p>
 
-          <div v-for="grupo in grupos" :key="grupo.key" class="border-b border-black/5 last:border-b-0">
+          <div v-for="(grupo, gIdx) in grupos" :key="grupo.key" class="border-b border-black/5 last:border-b-0">
             <div class="flex items-center gap-2 bg-black/[0.03] px-3 py-1.5">
               <span class="truncate text-sm font-semibold text-black">{{ grupo.nome }}</span>
+              <span v-if="grupos.length > 1" class="text-xs font-medium text-black/40">#{{ gIdx + 1 }}</span>
               <span
                 :class="[
                   'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold',
@@ -338,11 +339,11 @@
             </div>
           </div>
 
-          <footer class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-black/5 px-3 py-2">
+          <footer class="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 border-t border-black/5 px-3 py-2">
             <p class="text-sm text-black/60">
               Total <span class="text-lg font-semibold text-black">{{ formatarMoeda(total) }}</span>
             </p>
-            <span v-if="pendentesOrcamento" class="ml-auto flex items-center gap-1.5 text-xs text-orange-600">
+            <span v-if="pendentesOrcamento" class="mr-auto flex items-center gap-1.5 text-xs text-orange-600">
               <span class="mdi mdi-phone text-[14px]"></span>
               {{ pendentesOrcamento }} {{ pendentesOrcamento === 1 ? 'item precisa' : 'itens precisam' }} de orçamento (ligar para o cliente)
             </span>
@@ -710,14 +711,26 @@ const podeFotografar = computed(() => ordem.value?.estado !== 'CANCELADO')
 // Estado da O.S. na mesma escala dos itens (ENTRADA da O.S. = CADASTRADO do item)
 const estadoOsComoItem = computed(() => (ordem.value?.estado === 'ENTRADA' ? 'CADASTRADO' : ordem.value?.estado))
 
-// Um objeto = itens consecutivos do mesmo tipo; as fotos do objeto ficam presas ao primeiro item dele
+// Um objeto = itens do mesmo objeto_indice (ou consecutivos do mesmo tipo em legados sem objeto_indice)
 const grupos = computed(() => {
   const lista = []
   for (const item of itens.value) {
     const temFotos = fotos.value.some((f) => f.item_id === item.id)
     let grupo = lista[lista.length - 1]
-    if (!grupo || grupo.tipoId !== item.tipo_objeto_id || temFotos) {
-      grupo = { key: item.id, tipoId: item.tipo_objeto_id, nome: item.tipo_objeto_nome || 'Objeto', itens: [] }
+    const novoGrupo = !grupo
+      ? true
+      : item.objeto_indice != null
+        ? grupo.objetoIndice !== item.objeto_indice
+        : (grupo.tipoId !== item.tipo_objeto_id || temFotos)
+
+    if (novoGrupo) {
+      grupo = {
+        key: item.id,
+        objetoIndice: item.objeto_indice,
+        tipoId: item.tipo_objeto_id,
+        nome: item.tipo_objeto_nome || 'Objeto',
+        itens: [],
+      }
       lista.push(grupo)
     }
     grupo.itens.push(item)
@@ -778,7 +791,7 @@ async function definirEstadoGrupo(grupo, estado) {
 
   try {
     await atualizarSituacaoOs()
-    toast.sucesso(`${grupo.nome}: ${estadoItemInfo(estado).label.toLowerCase()}.`)
+    toast.sucesso(`${grupo.nome}${grupos.value.length > 1 ? ` #${grupos.value.indexOf(grupo) + 1}` : ""}: ${estadoItemInfo(estado).label.toLowerCase()}.`)
   } catch {
     toast.erro('O objeto foi salvo, mas não foi possível atualizar a situação da O.S.')
   } finally {
@@ -910,7 +923,7 @@ async function confirmarEntrega() {
     toast.sucesso(
       devolucao
         ? `O.S. ${ordem.value.numero} devolvida ao cliente.`
-        : grupo ? `${grupo.nome} entregue ao cliente.` : `O.S. ${ordem.value.numero} entregue ao cliente.`
+        : grupo ? `${grupo.nome}${grupos.value.length > 1 ? ` #${grupos.value.indexOf(grupo) + 1}` : ""} entregue ao cliente.` : `O.S. ${ordem.value.numero} entregue ao cliente.`
     )
 
     // O.S. concluída (entregue ou devolvida) sai das pendentes: volta para a lista

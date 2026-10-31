@@ -405,16 +405,16 @@
             <p class="anim-subir mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400" style="animation-delay:.16s">Impressão das vias</p>
 
             <div :class="['anim-subir relative mt-2 sm:mt-3', menuImpressaoAberto ? 'z-50' : '']" style="animation-delay:.16s" @keydown.esc="menuImpressaoAberto = false">
-              <div class="flex overflow-hidden rounded-xl bg-black text-white shadow-sm">
+              <div class="flex items-stretch gap-1.5 rounded-xl bg-transparent text-white">
                 <button type="button"
-                  class="flex min-w-0 flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold transition hover:bg-black/80 sm:py-3.5"
+                  class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-black px-3 py-3 text-sm font-semibold shadow-sm transition hover:bg-black/80 sm:py-3.5"
                   @click="imprimirVia('ambas')">
                   <span class="mdi mdi-printer-pos-outline text-[19px]"></span>
                   <span>Imprimir as duas vias juntas</span>
                 </button>
-                <div class="border-l border-white/25">
+                <div class="relative w-14 shrink-0">
                   <button type="button"
-                    class="flex h-full w-12 items-center justify-center transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+                    class="flex h-full w-full items-center justify-center rounded-xl bg-black text-white shadow-sm transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
                     aria-label="Escolher via para imprimir"
                     aria-haspopup="menu"
                     :aria-expanded="menuImpressaoAberto"
@@ -497,7 +497,7 @@ import { useFotos } from '@/composables/useFotos'
 import { useImpressao } from '@/composables/useImpressao'
 import { useRascunhoOs, limparRascunhoOs } from '@/composables/useRascunhoOs'
 import { buscarCliente, criarCliente } from '@/services/clientes'
-import { criarOrdem, buscarOrdem, enviarFotos, atualizarOrdem, adicionarItemOrdem } from '@/services/ordensServico'
+import { criarOrdem, buscarOrdem, enviarFotos, atualizarOrdem, adicionarItemOrdem, atualizarItemOrdem } from '@/services/ordensServico'
 import { adicionarFotosNaLista, liberarFotos, motivoDaFalha } from '@/utils/imagem'
 import { dataISO, horaCurta } from '@/utils/ordem'
 
@@ -673,8 +673,9 @@ async function enviarFotosDaOrdem(ordemId) {
   try {
     const { itens } = await buscarOrdem(ordemId)
     let posicao = 0
-    for (const obj of objetos.value) {
-      const primeiroItem = itens[posicao]
+    for (const [objIdx, obj] of objetos.value.entries()) {
+      const indiceEsperado = obj.objeto_indice ?? (objIdx + 1)
+      const primeiroItem = itens.find(i => i.objeto_indice === indiceEsperado) || itens[posicao]
       posicao += obj.servicos.length
       const fotosObj = obj.fotos.filter(f => f.status === 'ok')
       if (fotosObj.length && primeiroItem) {
@@ -810,7 +811,7 @@ async function salvarEdicao() {
     })
 
     let falhouFoto = false
-    for (const obj of objetos.value) {
+    for (const [objIdx, obj] of objetos.value.entries()) {
       let primeiroItemId = obj.servicos.find(sv => sv._itemId)?._itemId ?? null
       for (const sv of obj.servicos) {
         if (sv._itemId) continue
@@ -820,9 +821,17 @@ async function salvarEdicao() {
           quantidade:     sv.quantidade,
           valor_unitario: parseMoeda(sv._valorStr) || null,
           eh_orcamento:   obj.eh_orcamento,
+          objeto_indice:  obj.objeto_indice ?? (objIdx + 1),
+          observacoes:    sv === obj.servicos[0] ? (obj.observacoes?.trim() || null) : null,
         })
         sv._itemId = item.id // se algo falhar adiante, tentar de novo não duplica o que já foi gravado
         primeiroItemId ??= item.id
+      }
+
+      if (primeiroItemId && obj.observacoes !== undefined) {
+        try {
+          await atualizarItemOrdem(id, primeiroItemId, { observacoes: obj.observacoes.trim() || null })
+        } catch { /* se não suportar ou falhar, prossegue */ }
       }
 
       const fotosObj = obj.fotos.filter(f => f.status === 'ok')
@@ -877,8 +886,9 @@ function imprimirVia(tipo) {
     osNum:    osCriada.value?.numero ?? osCriada.value?.id ?? '—',
     cliente, os,
     itens: objetos.value.map(obj => ({
-      nomeObjeto: nomeTipoObjeto(obj.tipo_objeto_id),
-      servicos:   obj.servicos.map(sv => ({
+      nomeObjeto:  nomeTipoObjeto(obj.tipo_objeto_id),
+      observacoes: obj.observacoes || '',
+      servicos:    obj.servicos.map(sv => ({
         nome:       sv.nome,
         quantidade: sv.quantidade,
         valor:      sv._valorStr || '—',

@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS itens_ordem_servico (
   valor_total    NUMERIC(10,2) GENERATED ALWAYS AS (quantidade::numeric * valor_unitario) STORED,
   eh_orcamento   BOOLEAN DEFAULT FALSE,
   estado         VARCHAR(20) DEFAULT 'CADASTRADO',
+  objeto_indice  INTEGER DEFAULT 1,
   data_entrega   DATE,
   hora_entrega   TIME,
   foto_url       VARCHAR(500),
@@ -184,12 +185,35 @@ CREATE TABLE IF NOT EXISTS itens_ordem_servico (
     CHECK ((eh_orcamento = FALSE AND valor_unitario > 0) OR (eh_orcamento = TRUE AND valor_unitario >= 0))
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'itens_ordem_servico' AND column_name = 'objeto_indice'
+  ) THEN
+    ALTER TABLE itens_ordem_servico ADD COLUMN objeto_indice INTEGER DEFAULT 1;
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_items_ordem        ON itens_ordem_servico (ordem_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'itens_ordem_servico' AND column_name = 'objeto_indice'
+  ) THEN
+    ALTER TABLE itens_ordem_servico ADD COLUMN objeto_indice INTEGER DEFAULT 1;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_items_ordem_objeto ON itens_ordem_servico (ordem_id, objeto_indice);
 CREATE INDEX IF NOT EXISTS idx_items_objeto       ON itens_ordem_servico (tipo_objeto_id);
 CREATE INDEX IF NOT EXISTS idx_items_servico      ON itens_ordem_servico (servico_id);
 CREATE INDEX IF NOT EXISTS idx_items_estado       ON itens_ordem_servico (estado);
 CREATE INDEX IF NOT EXISTS idx_items_eh_orcamento ON itens_ordem_servico (eh_orcamento);
 CREATE INDEX IF NOT EXISTS idx_items_entrega      ON itens_ordem_servico (data_entrega, hora_entrega);
+
+
 
 
 -- -----------------------------------------------------------------------------

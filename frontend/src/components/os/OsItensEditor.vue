@@ -22,10 +22,10 @@
           </p>
         </div>
         <label
-          class="relative flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-black"
+          class="relative flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
           title="Tirar foto do objeto"
         >
-          <span class="mdi mdi-camera-outline text-[20px]"></span>
+          <span class="mdi mdi-camera-outline text-[19px]"></span>
           <span
             v-if="obj.fotos.length"
             class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-bold text-white"
@@ -43,14 +43,29 @@
           />
         </label>
         <button
+          type="button"
+          class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition"
+          :class="obj.mostrarObs ? 'bg-slate-100 text-slate-900' : obj.observacoes?.trim() ? 'text-slate-800 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'"
+          :title="obj.observacoes?.trim() ? 'Observação do objeto (preenchida)' : 'Adicionar observação do objeto'"
+          :aria-label="`Observação do objeto ${objIdx + 1}`"
+          @click="aoClicarObservacao(obj)"
+        >
+          <span :class="['mdi text-[19px]', obj.observacoes?.trim() ? 'mdi-comment-text-outline' : 'mdi-comment-outline']"></span>
+          <span
+            v-if="obj.observacoes?.trim()"
+            class="absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-black ring-2 ring-white"
+            title="Possui observação"
+          ></span>
+        </button>
+        <button
           v-if="objetos.length > 1 && !objetoTravado(obj)"
           type="button"
-          class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500"
           :aria-label="`Remover objeto ${objIdx + 1}`"
           title="Remover objeto"
           @click="removerObjeto(obj._id)"
         >
-          <span class="mdi mdi-trash-can-outline text-[16px]"></span>
+          <span class="mdi mdi-trash-can-outline text-[17px]"></span>
         </button>
       </div>
 
@@ -310,6 +325,43 @@
           <span class="mdi mdi-plus text-[14px]"></span>
           Adicionar serviço
         </button>
+
+        <!-- Observação específica do objeto -->
+        <div
+          v-if="obj.mostrarObs || obj.observacoes"
+          class="mt-4 border-t border-slate-100 pt-3.5 transition"
+        >
+          <div class="mb-1.5 flex items-center justify-between">
+            <label
+              :for="`obs-${obj._id}`"
+              class="flex items-center gap-1.5 text-xs font-semibold text-slate-600"
+            >
+              <span class="mdi mdi-comment-text-outline text-slate-400 text-sm"></span>
+              Observação do objeto
+              <span class="text-[11px] font-normal text-slate-400">(opcional)</span>
+            </label>
+            <button
+              v-if="!obj.observacoes"
+              type="button"
+              class="flex items-center gap-1 text-[11px] font-medium text-slate-400 transition hover:text-slate-600"
+              @click="obj.mostrarObs = false"
+            >
+              <span class="mdi mdi-close text-[13px]"></span>
+              Fechar
+            </button>
+            <span v-else class="text-[10px] text-slate-400">
+              {{ obj.observacoes.length }}/500
+            </span>
+          </div>
+          <textarea
+            :id="`obs-${obj._id}`"
+            v-model="obj.observacoes"
+            rows="2"
+            maxlength="500"
+            placeholder="Defeito, riscos, instrução ao técnico para este objeto..."
+            class="w-full resize-none rounded-xl border border-black/10 bg-slate-50/50 p-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-black/30 focus:bg-white focus:ring-2 focus:ring-black/10"
+          ></textarea>
+        </div>
       </div>
     </div>
 
@@ -327,7 +379,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, nextTick } from 'vue'
 import { formatarMoeda, valorDoServico } from '@/composables/useItens'
 import { motivoDaFalha } from '@/utils/imagem'
 
@@ -342,6 +394,27 @@ const props = defineProps({
   mudarQuantidade:{ type: Function, required: true },
   carregando:     { type: Boolean,  default: false },
 })
+
+function aoClicarObservacao(obj) {
+  if (obj.mostrarObs && !obj.observacoes?.trim()) {
+    obj.mostrarObs = false
+    return
+  }
+  obj.mostrarObs = true
+
+  nextTick(() => {
+    const el = document.getElementById(`obs-${obj._id}`)
+    if (!el) return
+    el.focus({ preventScroll: false })
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+    // No celular o teclado virtual leva ~150-300ms para subir; um reforço garante que não fique coberto
+    setTimeout(() => {
+      el.focus({ preventScroll: false })
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 250)
+  })
+}
 
 const emit = defineEmits([
   'adicionar-objeto', 'remover-objeto',

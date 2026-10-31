@@ -2,6 +2,7 @@ import { parseMoeda } from './useItens'
 import { formatarTelefone } from './useClienteForm'
 import { formatarDataBR, dataISO, horaCurta } from '@/utils/ordem'
 import { useConfigStore } from '@/stores/config'
+import { PADRAO_LAYOUT_NOTA, normalizarLayoutNota } from '@/utils/layoutNota'
 
 const SEM_VALOR = '—'
 
@@ -34,24 +35,26 @@ function esc(texto) {
 }
 
 const ESTILOS = `
-  @page{size:80mm auto;margin:0}
+  @page{size:__LARGURA_NOTA__mm auto;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;background:#ececec}
-  .via{display:flex;flex-direction:column;width:80mm;margin:8px auto;padding:8px 10px 10px;background:#fff}
-  .fim{margin-top:auto}
+  .via{display:flex;flex-direction:column;width:var(--nota-largura);margin:8px auto;padding:8px 10px 10px;background:#fff}
   @media print{
     body{background:#fff}
     .via{margin:0;page-break-after:always}
     .via:last-child{page-break-after:auto}
   }
+  .fim{margin-top:auto}
   .topo{text-align:center}
-  .logo-img{max-width:60mm;max-height:22mm;object-fit:contain}
+  .logo-img{max-width:calc(var(--nota-largura) - 20mm);max-height:22mm;object-fit:contain}
   .empresa{font-size:16px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
   .contato{margin-top:4px;font-size:9px;line-height:1.5;color:#222}
   .id{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
   .id .cli{min-width:0}
   .id .cli b{display:block;font-size:12px;text-transform:uppercase;word-break:break-word}
   .id .cli span{display:block;margin-top:8px;font-size:11px}
+  .cliente-nome{font-size:12px;font-weight:700;text-transform:uppercase;word-break:break-word}
+  .cliente-telefone{margin-top:8px;font-size:11px}
   .caixa{position:relative;flex:none;min-width:27mm;padding:3px 8px 4px;border:1px solid #000;text-align:center}
   .caixa small{display:block;text-align:left;font-size:10px}
   .caixa em{position:absolute;top:2px;right:5px;font-size:8px;font-style:normal;color:#333}
@@ -64,14 +67,38 @@ const ESTILOS = `
   .sv .linha{display:flex;align-items:flex-end;gap:5px;font-size:9px;color:#222}
   .sv .fio{flex:1;margin-bottom:3px;border-bottom:1px solid #666}
   .sv .linha b{font-size:11px;color:#000;white-space:nowrap}
+  .obj-obs{margin:3px 0 0 8px;font-size:9.5px;color:#000;line-height:1.35}
   .total{margin-top:8px;text-align:right;font-size:12px;font-weight:700}
   .total .tracos{width:35%;margin:0 0 4px auto;border-top:1px solid #000}
   .nota{margin-top:4px;font-size:8px;color:#444;font-style:italic;text-align:right}
   .obs{margin-top:8px;padding:3px 6px;border-left:2px solid #000;font-size:9px;line-height:1.4}
+  .mensagem{text-align:center;font-size:8.5px;line-height:1.55;color:#222}
   .rodape{margin-top:12px;text-align:center;font-size:8.5px;line-height:1.55;color:#222}
   .rodape b{display:block;font-size:9px;color:#000}
   .assinatura{margin-top:28px;padding-top:3px;border-top:1px solid #000;text-align:center;font-size:9px;color:#222}
   .assinatura b{display:block;font-size:11px;color:#000;text-transform:uppercase}
+  .espacamento-compacto .id{margin-top:6px}
+  .espacamento-compacto .cab{margin-top:7px}
+  .espacamento-compacto .obj{margin-top:4px}
+  .espacamento-compacto .sv{margin-top:1px}
+  .espacamento-compacto .total{margin-top:5px}
+  .espacamento-compacto .obs{margin-top:5px}
+  .espacamento-compacto .contato{margin-top:2px}
+  .espacamento-compacto .cliente-telefone{margin-top:4px}
+  .espacamento-compacto .assinatura{margin-top:14px}
+  .espacamento-compacto .rodape{margin-top:8px}
+  .espacamento-compacto .mensagem{margin-top:0}
+  .espacamento-amplo .id{margin-top:15px}
+  .espacamento-amplo .cab{margin-top:15px}
+  .espacamento-amplo .obj{margin-top:11px}
+  .espacamento-amplo .sv{margin-top:6px}
+  .espacamento-amplo .total{margin-top:13px}
+  .espacamento-amplo .obs{margin-top:13px}
+  .espacamento-amplo .contato{margin-top:8px}
+  .espacamento-amplo .cliente-telefone{margin-top:14px}
+  .espacamento-amplo .assinatura{margin-top:36px}
+  .espacamento-amplo .rodape{margin-top:18px}
+  .espacamento-amplo .mensagem{margin-top:13px}
 `
 
 function formatarValor(numero) {
@@ -111,14 +138,51 @@ function montarItens(itens, os) {
           <div class="linha"><span>${esc(entrega)}</span><span class="fio"></span><b>${unitario > 0 ? `R$ ${formatarValor(subtotal)}` : 'a orçar'}</b></div>
         </div>`
     }
+
+    if (obj.observacoes && obj.observacoes.trim()) {
+      html += `<div class="obj-obs">Obs: ${esc(obj.observacoes.trim())}</div>`
+    }
   }
 
   return { html, total, aOrcar }
 }
 
 function montarVia({ osNum, cliente, os, itens, loja, agora, empresa }) {
+  const layout = normalizarLayoutNota(empresa.layoutNota || PADRAO_LAYOUT_NOTA)
+  if (JSON.stringify(layout) === JSON.stringify(PADRAO_LAYOUT_NOTA)) {
+    return montarViaPadrao({ osNum, cliente, os, itens, loja, agora, empresa })
+  }
+
   const { html, total, aOrcar } = montarItens(itens, os)
 
+  const contato = linhasContato(empresa)
+  const blocos = {
+    logo: empresa.logo
+      ? `<div class="topo"><img class="logo-img" src="${esc(empresa.logo)}" alt="${esc(empresa.nome)}"></div>`
+      : (empresa.nome ? `<div class="empresa topo">${esc(empresa.nome)}</div>` : ''),
+    dadosEmpresa: contato.length ? `<div class="contato topo">${contato.map(esc).join('<br>')}</div>` : '',
+    cliente: `<div class="cliente-nome">${esc(cliente.nome)}</div>`,
+    telefone: cliente.telefone ? `<div class="cliente-telefone">${esc(cliente.telefone)}</div>` : '',
+    numeroOs: `<div class="caixa"><small>O.S.:</small>${loja ? '<em>2ª Via</em>' : ''}<b>${esc(osNum)}</b></div>`,
+    itens: `<div class="cab"><span>Item:</span><b>Valor do Serviço:</b></div>${html}${aOrcar ? '<p class="nota">Itens "a orçar" terão o valor informado após a avaliação.</p>' : ''}`,
+    total: `<div class="total"><div class="tracos"></div>TOTAL: R$ ${formatarValor(total)}</div>`,
+    observacoes: loja ? [
+      os.observacoes && `<div class="obs">${esc(os.observacoes)}</div>`,
+      cliente.observacoes && `<div class="obs">${esc(cliente.observacoes)}</div>`,
+    ].filter(Boolean).join('') : '',
+    mensagem: empresa.mensagem
+      ? `<div class="mensagem">${esc(empresa.mensagem).replace(/\r?\n/g, '<br>')}</div>`
+      : '',
+    assinatura: loja ? `<div class="assinatura"><b>${esc(cliente.nome)}</b>Recebi os itens descritos nesta nota.</div>` : '',
+    rodape: `<div class="rodape">Data de emissão: ${esc(agora)}${loja ? '' : '<b>ESTE NÃO É UM DOCUMENTO FISCAL.</b>'}</div>`,
+  }
+  const ordem = layout[loja ? 'loja' : 'cliente']
+  const conteudo = ordem.filter((id) => blocos[id]).map((id) => `<div class="bloco">${blocos[id]}</div>`).join('')
+  return `<section class="via espacamento-${layout.espacamento}">${conteudo}</section>`
+}
+
+function montarViaPadrao({ osNum, cliente, os, itens, loja, agora, empresa }) {
+  const { html, total, aOrcar } = montarItens(itens, os)
   const contato = linhasContato(empresa)
   const topo = loja
     ? ''
@@ -128,14 +192,12 @@ function montarVia({ osNum, cliente, os, itens, loja, agora, empresa }) {
           : (empresa.nome ? `<div class="empresa">${esc(empresa.nome)}</div>` : '')}
         ${contato.length ? `<div class="contato">${contato.map(esc).join('<br>')}</div>` : ''}
       </div>`
-
   const observacoes = loja
     ? [
         os.observacoes && `<div class="obs">${esc(os.observacoes)}</div>`,
         cliente.observacoes && `<div class="obs">${esc(cliente.observacoes)}</div>`,
       ].filter(Boolean).join('')
     : ''
-
   const rodape = loja
     ? `<div class="assinatura"><b>${esc(cliente.nome)}</b>Recebi os itens descritos nesta nota.</div>
        <div class="rodape">Data de emissão: ${esc(agora)}</div>`
@@ -159,16 +221,36 @@ function montarVia({ osNum, cliente, os, itens, loja, agora, empresa }) {
           <b>${esc(osNum)}</b>
         </div>
       </div>
-
       <div class="cab"><span>Item:</span><b>Valor do Serviço:</b></div>
       ${html}
-
       <div class="total"><div class="tracos"></div>TOTAL: R$ ${formatarValor(total)}</div>
       ${aOrcar ? '<p class="nota">Itens "a orçar" terão o valor informado após a avaliação.</p>' : ''}
       ${observacoes}
       <div class="fim">${rodape}</div>
     </section>
   `
+}
+
+export function gerarHtmlNota({ osNum, cliente, os, itens = [], tipo = 'ambas', empresa = {}, agora = new Date().toLocaleString('pt-BR') }) {
+  const layout = normalizarLayoutNota(empresa.layoutNota || PADRAO_LAYOUT_NOTA)
+  const layoutPadrao = JSON.stringify(layout) === JSON.stringify(PADRAO_LAYOUT_NOTA)
+  const vias = [
+    tipo !== 'loja' ? montarVia({ osNum, cliente, os, itens, agora, empresa }) : '',
+    tipo !== 'cliente' ? montarVia({ osNum, cliente, os, itens, agora, empresa, loja: true }) : '',
+  ].join('')
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>O.S. ${esc(osNum)}</title>
+    <style>:root{--nota-largura:${layout.larguraMm}mm} ${ESTILOS.replaceAll('__LARGURA_NOTA__', layout.larguraMm)}</style>
+  </head><body data-layout-padrao="${layoutPadrao}">${vias}</body></html>`
+}
+
+export function equalizarAlturaPadrao(doc) {
+  if (doc?.body?.dataset.layoutPadrao !== 'true') return
+  const folhas = Array.from(doc.querySelectorAll('.via'))
+  if (!folhas.length) return
+  const altura = Math.max(...folhas.map((folha) => folha.offsetHeight))
+  folhas.forEach((folha) => { folha.style.minHeight = `${altura}px` })
 }
 
 export function useImpressao() {
@@ -181,7 +263,7 @@ export function useImpressao() {
   // cliente = { nome, telefone, observacoes }
   // os      = { dataEntrega: 'YYYY-MM-DD', horaEntrega, observacoes }
   // tipo    = 'cliente' | 'loja' | 'ambas'
-  function imprimir({ osNum, cliente, os, itens = [], tipo = 'ambas' }) {
+  function imprimir({ osNum, cliente, os, itens = [], tipo = 'ambas', layoutNota = config.layoutNota }) {
     const agora = new Date().toLocaleString('pt-BR')
     const empresa = {
       nome: config.empresaNome,
@@ -195,32 +277,21 @@ export function useImpressao() {
       whatsapp: config.empresaWhatsapp,
       instagram: config.empresaInstagram,
       mensagem: config.notaMensagem,
+      layoutNota,
     }
-    const dados = { osNum, cliente, os, itens, agora, empresa }
-
-    const vias = [
-      tipo !== 'loja' ? montarVia({ ...dados, loja: false }) : '',
-      tipo !== 'cliente' ? montarVia({ ...dados, loja: true }) : '',
-    ].join('')
-
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head>
-      <meta charset="UTF-8"><title>O.S. ${esc(osNum)}</title>
-      <style>${ESTILOS}</style>
-    </head><body>${vias}</body></html>`
+    const html = gerarHtmlNota({ osNum, cliente, os, itens, tipo, empresa, agora })
 
     const w = window.open('', '_blank', 'width=420,height=800')
     if (!w) { alert('Permita popups nesta página para imprimir.'); return }
     w.document.write(html)
     w.document.close()
     w.focus()
-    // Aguarda a logo carregar; depois deixa todas as vias com a mesma altura (papel igual) e imprime
+    // Aguarda a logo antes de abrir a impressão para evitar uma via sem imagem.
     const carregamentos = Array.from(w.document.images).map((img) =>
       img.complete ? null : new Promise((ok) => { img.onload = img.onerror = ok })
     )
     Promise.all(carregamentos).then(() => {
-      const folhas = Array.from(w.document.querySelectorAll('.via'))
-      const altura = Math.max(...folhas.map((f) => f.offsetHeight))
-      folhas.forEach((f) => { f.style.minHeight = `${altura}px` })
+      equalizarAlturaPadrao(w.document)
       setTimeout(() => w.print(), 200)
     })
   }
@@ -230,9 +301,23 @@ export function useImpressao() {
     const grupos = []
     for (const item of (ordem.itens ?? []).filter((i) => i.estado !== 'CANCELADO')) {
       let grupo = grupos[grupos.length - 1]
-      if (!grupo || grupo.tipoId !== item.tipo_objeto_id) {
-        grupo = { tipoId: item.tipo_objeto_id, nomeObjeto: item.tipo_objeto_nome, servicos: [] }
+      const novoGrupo = !grupo
+        ? true
+        : item.objeto_indice != null
+          ? grupo.objeto_indice !== item.objeto_indice
+          : grupo.tipoId !== item.tipo_objeto_id
+
+      if (novoGrupo) {
+        grupo = {
+          objeto_indice: item.objeto_indice,
+          tipoId: item.tipo_objeto_id,
+          nomeObjeto: item.tipo_objeto_nome,
+          observacoes: item.observacoes || '',
+          servicos: [],
+        }
         grupos.push(grupo)
+      } else if (!grupo.observacoes && item.observacoes) {
+        grupo.observacoes = item.observacoes
       }
       const valor = Number(item.valor_unitario)
       grupo.servicos.push({

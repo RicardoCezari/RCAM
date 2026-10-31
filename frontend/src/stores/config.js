@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import api from '@/services/api'
 import { fileUrl } from '@/utils/arquivos'
 import { aplicarTema } from '@/utils/tema'
+import { copiarLayoutNota } from '@/utils/layoutNota'
+
+const PADRAO_IMPRESSORA_REDE = Object.freeze({ tipoConexao: 'ethernet', enderecoIp: '' })
 
 export const useConfigStore = defineStore('config', () => {
   const empresaNome = ref('')
@@ -15,6 +18,8 @@ export const useConfigStore = defineStore('config', () => {
   const empresaWhatsapp = ref('')
   const empresaInstagram = ref('')
   const notaMensagem = ref('')
+  const layoutNota = ref(copiarLayoutNota())
+  const impressoraRede = ref({ ...PADRAO_IMPRESSORA_REDE })
   const logoUrl = ref(null)
   const pinTamanho = ref(4)
   const temaCor = ref(null)
@@ -33,6 +38,7 @@ export const useConfigStore = defineStore('config', () => {
     empresaWhatsapp.value = data?.empresa_whatsapp || ''
     empresaInstagram.value = data?.empresa_instagram || ''
     notaMensagem.value = data?.nota_mensagem || ''
+    layoutNota.value = copiarLayoutNota(data?.nota_layout)
     logoUrl.value = data?.logo_url || null
     pinTamanho.value = data?.pin_tamanho || 4
     temaCor.value = data?.tema_cor || null
@@ -55,6 +61,21 @@ export const useConfigStore = defineStore('config', () => {
     aplicar(data)
   }
 
+  async function salvarLayoutNota(layout) {
+    const { data } = await api.put('/configuracoes', { nota_layout: layout })
+    aplicar(data)
+  }
+
+  async function carregarImpressoraRede() {
+    const { data } = await api.get('/configuracoes/impressora')
+    impressoraRede.value = { ...PADRAO_IMPRESSORA_REDE, ...data }
+  }
+
+  async function salvarImpressoraRede(rede) {
+    const { data } = await api.put('/configuracoes/impressora', rede)
+    impressoraRede.value = { ...PADRAO_IMPRESSORA_REDE, ...data }
+  }
+
   async function enviarLogo(arquivo) {
     const form = new FormData()
     form.append('logo', arquivo)
@@ -75,7 +96,8 @@ export const useConfigStore = defineStore('config', () => {
 
   return {
     empresaNome, empresaCnpj, empresaEndereco, empresaNumero, empresaComplemento, empresaBairro,
-    empresaTelefone, empresaWhatsapp, empresaInstagram, notaMensagem,
+    empresaTelefone, empresaWhatsapp, empresaInstagram, notaMensagem, layoutNota, impressoraRede,
     logoUrl, logoSrc, iniciais, pinTamanho, temaCor, carregar, salvarDados, enviarLogo, removerLogo, salvarTema,
+    salvarLayoutNota, carregarImpressoraRede, salvarImpressoraRede,
   }
 })
